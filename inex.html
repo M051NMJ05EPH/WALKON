@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Walkon Supplier Center</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #f0f8f0, #e0f7e0);
+            min-height: 100vh;
+        }
+
+        .page {
+            display: none;
+            width: 90%;
+            max-width: 420px;
+            margin: 20px auto;
+            padding: 30px;
+            border-radius: 16px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+            background-color: #ffffff;
+            text-align: center;
+        }
+
+        .page.active {
+            display: block;
+        }
+
+        .logo {
+            font-size: 56px;
+            font-weight: bold;
+            color: #28a745;
+            margin-bottom: 8px;
+        }
+
+        .welcome {
+            font-size: 26px;
+            margin-bottom: 8px;
+            color: #333;
+        }
+
+        .subtitle {
+            font-size: 16px;
+            color: #666;
+            margin-bottom: 40px;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-size: 14px;
+        }
+
+        .input-field {
+            width: 100%;
+            padding: 16px;
+            border: 1px solid #ccc;
+            border-radius: 30px;
+            font-size: 16px;
+            background-color: #f9f9f9;
+            box-sizing: border-box;
+        }
+
+        .input-field:focus {
+            outline: none;
+            border-color: #28a745;
+        }
+
+        .remember-me {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+            font-size: 14px;
+            color: #555;
+        }
+
+        .remember-me input {
+            margin-right: 8px;
+        }
+
+        .login-btn {
+            width: 100%;
+            padding: 16px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 30px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-bottom: 20px;
+        }
+
+        .login-btn:hover {
+            background-color: #218838;
+        }
+
+        .google-btn {
+            width: 100%;
+            padding: 16px;
+            background-color: #ffffff;
+            color: #333;
+            border: 1px solid #ddd;
+            border-radius: 30px;
+            font-size: 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 30px;
+        }
+
+        .google-btn img {
+            width: 20px;
+            height: 20px;
+            margin-right: 12px;
+        }
+
+        .links a {
+            color: #28a745;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        .create-account {
+            margin-top: 12px;
+        }
+
+        /* Products Page Styles */
+        .success-msg {
+            font-size: 24px;
+            color: #28a745;
+            margin-bottom: 30px;
+        }
+
+        .product-list {
+            display: grid;
+            gap: 20px;
+            text-align: left;
+        }
+
+        .product-card {
+            display: flex;
+            border: 1px solid #eee;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+
+        .product-card img {
+            width: 100px;
+            height: 100px;
+            object-fit: cover;
+        }
+
+        .product-info {
+            padding: 15px;
+            flex: 1;
+        }
+
+        .product-name {
+            font-size: 18px;
+            font-weight: bold;
+            margin: 0 0 8px;
+        }
+
+        .product-price {
+            color: #28a745;
+            font-size: 16px;
+            font-weight: bold;
+        }
+
+        .product-stock {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .logout-btn {
+            margin-top: 30px;
+            padding: 12px 24px;
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 30px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Login Page -->
+    <div id="loginPage" class="page active">
+        <div class="logo">WALKON</div>
+        <h2 class="welcome">Welcome Back</h2>
+        <p class="subtitle">B2B Wholesale Marketplace</p>
+
+        <form id="loginForm">
+            <div class="input-group">
+                <label for="email">Email</label>
+                <input type="email" id="email" class="input-field" placeholder="Enter your email" required>
+            </div>
+            <div class="input-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" class="input-field" placeholder="Enter your password" required>
+            </div>
+
+            <div class="remember-me">
+                <input type="checkbox" id="remember">
+                <label for="remember">Remember me</label>
+            </div>
+
+            <button type="submit" class="login-btn">Login</button>
+        </form>
+
+        <button class="google-btn">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/512px-Google_%22G%22_logo.svg.png" alt="Google">
+            Continue with Google
+        </button>
+
+        <div class="links">
+            <a href="#">Forgot password?</a>
+            <div class="create-account">
+                New seller? <a href="#">Create Account</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Products Page -->
+    <div id="productsPage" class="page">
+        <div class="logo">WALKON</div>
+        <p class="success-msg">Login Successful! Welcome to your dashboard.</p>
+
+        <h3 style="text-align: left; margin-bottom: 20px;">Your Products</h3>
+
+        <div class="product-list">
+            <div class="product-card">
+                <img src="https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=200" alt="Shoes">
+                <div class="product-info">
+                    <p class="product-name">Nike Air Max 270</p>
+                    <p class="product-price">৳ 12,500</p>
+                    <p class="product-stock">Stock: 45 units</p>
+                </div>
+            </div>
+
+            <div class="product-card">
+                <img src="https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=200" alt="Watch">
+                <div class="product-info">
+                    <p class="product-name">Smart Watch Pro</p>
+                    <p class="product-price">৳ 8,900</p>
+                    <p class="product-stock">Stock: 120 units</p>
+                </div>
+            </div>
+
+            <div class="product-card">
+                <img src="https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=200" alt="Headphones">
+                <div class="product-info">
+                    <p class="product-name">Wireless Headphones</p>
+                    <p class="product-price">৳ 4,200</p>
+                    <p class="product-stock">Stock: 80 units</p>
+                </div>
+            </div>
+
+            <div class="product-card">
+                <img src="https://images.unsplash.com/photo-1583394838336-8e2c1e1201a7?w=200" alt="T-Shirt">
+                <div class="product-info">
+                    <p class="product-name">Cotton T-Shirt Pack</p>
+                    <p class="product-price">৳ 1,800</p>
+                    <p class="product-stock">Stock: 300 units</p>
+                </div>
+            </div>
+        </div>
+
+        <button class="logout-btn" onclick="logout()">Logout</button>
+    </div>
+
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', function(e) {
+            e.preventDefault(); // Prevent actual form submission
+
+            // Simulate login success
+            document.getElementById('loginPage').classList.remove('active');
+            document.getElementById('productsPage').classList.add('active');
+        });
+
+        function logout() {
+            document.getElementById('productsPage').classList.remove('active');
+            document.getElementById('loginPage').classList.add('active');
+            // Optional: clear form
+            document.getElementById('loginForm').reset();
+        }
+    </script>
+</body>
+</html>
