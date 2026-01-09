@@ -8,17 +8,7 @@ if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
 }
 
 // Database connection
-$host = 'localhost';
-$dbname = 'walkon_db';
-$username = 'root';
-$password = '';
-
-try {
-    $pdo = new PDO("mysql:host=$host;dbname=$dbname", $username, $password);
-    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-} catch (PDOException $e) {
-    die("Connection failed: " . $e->getMessage());
-}
+include 'config.php';
 
 // Fetch categories for dropdown (optional - adjust table name if needed)
 $categories = $pdo->query("SELECT DISTINCT category FROM products WHERE category IS NOT NULL")->fetchAll(PDO::FETCH_COLUMN);
@@ -27,7 +17,7 @@ $categories = $pdo->query("SELECT DISTINCT category FROM products WHERE category
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $sku = trim($_POST['sku']);
     $price = floatval($_POST['price']);
-    $name = trim($_POST['name']);
+    $product_name = trim($_POST['name']);
     $description = trim($_POST['description']);
     $sizes = trim($_POST['sizes']);
     $colors = trim($_POST['colors']);
@@ -42,9 +32,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $images_json = json_encode($image_urls);
 
     // Insert into database
-    $stmt = $pdo->prepare("INSERT INTO products (sku, name, price, description, sizes, colors, category, subcategory, images) 
-                           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
-    $stmt->execute([$sku, $name, $price, $description, $sizes, $colors, $category, $subcategory, $images_json]);
+    $stmt = $pdo->prepare("INSERT INTO products (sku, product_name, price, description, sizes, colors, category, subcategory, images, status, created_at) 
+                           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'published', NOW())");
+    $stmt->execute([$sku, $product_name, $price, $description, $sizes, $colors, $category, $subcategory, $images_json]);
 
     echo '<script>alert("Product added successfully!"); window.location="product.php";</script>';
 }

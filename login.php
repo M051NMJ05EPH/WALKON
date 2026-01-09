@@ -1,43 +1,413 @@
+<?php
+session_start();
+include 'config.php';
+
+$error = '';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $email = trim($_POST['email'] ?? '');
+    $password = $_POST['password'] ?? '';
+
+    if (empty($email) || empty($password)) {
+        $error = "Please fill in all fields!";
+    } else {
+        $stmt = $pdo->prepare("SELECT id, email, password, is_verified FROM users WHERE email = ?");
+        $stmt->execute([$email]);
+        $user = $stmt->fetch();
+
+        if ($user) {
+            if ($user['is_verified'] == 0) {
+                $error = "Please verify your email first!";
+            } elseif (password_verify($password, $user['password'])) {
+                $_SESSION['user_id'] = $user['id'];
+                $_SESSION['email'] = $user['email'];
+                header("Location: dashboard.php");
+                exit();
+            } else {
+                $error = "Invalid password!";
+            }
+        } else {
+            $error = "No account found with that email!";
+        }
+    }
+}
+?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - WALKON Supplier</title>
-    <style>/* Same style as above */</style>
+    <title>Login - WALKON Shoes</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; font-family:'Poppins',sans-serif; }
+        body, html { height:100%; background:#0f172a; color:white; overflow-x:hidden; }
+        .container {
+            display: flex;
+            min-height: 100vh;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .login-wrapper {
+            display: flex;
+            width: 90%;
+            max-width: 1100px;
+            min-height: 80vh;
+            background: #1e293b;
+            border-radius: 32px;
+            overflow: hidden;
+            box-shadow: 0 30px 80px rgba(0,0,0,0.6);
+        }
+        .left-image {
+            flex: 1;
+            position: relative;
+            display: flex;
+            align-items: flex-end;
+            padding: 60px;
+            overflow: hidden;
+            /* background removed in favor of video */
+        }
+        /* Video Background */
+        .left-image video {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: 0;
+        }
+        /* Dark Gradient Overlay */
+        .left-image::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.3), rgba(0,0,0,0.8));
+            z-index: 1;
+        }
+        .left-image h2 {
+            font-size: 36px;
+            font-weight: 700;
+            line-height: 1.3;
+            max-width: 80%;
+            z-index: 2;
+            position: relative;
+            color: white;
+            text-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
+        .right-form {
+            flex: 1;
+            padding: 60px 50px;
+            background: #1e293b;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .logo {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .logo h1 {
+            font-size: 40px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #28a745, #22c55e);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .welcome-text h2 {
+            font-size: 32px;
+            margin-bottom: 8px;
+            text-align: center;
+        }
+        .welcome-text p {
+            text-align: center;
+            color: #94a3b8;
+            margin-bottom: 40px;
+            line-height: 1.6;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        input[type="email"], input[type="password"] {
+            width: 100%;
+            padding: 16px 20px;
+            background: #334155;
+            border: none;
+            border-radius: 16px;
+            color: white;
+            font-size: 16px;
+        }
+        input::placeholder {
+            color: #94a3b8;
+        }
+        input:focus {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(40,167,69,0.3);
+        }
+        .password-group {
+            position: relative;
+        }
+        .password-toggle {
+            position: absolute;
+            right: 20px;
+            top: 18px;
+            color: #94a3b8;
+            cursor: pointer;
+            font-size: 18px;
+        }
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            margin: 20px 0;
+            font-size: 14px;
+            color: #94a3b8;
+        }
+        .checkbox-group input {
+            margin-right: 10px;
+            accent-color: #28a745;
+        }
+        .btn-login {
+            width: 100%;
+            padding: 18px;
+            background: linear-gradient(135deg, #a78bfa, #9333ea);
+            color: white;
+            border: none;
+            border-radius: 16px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-bottom: 30px;
+            transition: 0.3s;
+        }
+        .btn-login:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(147,51,234,0.4);
+        }
+        .divider {
+            text-align: center;
+            margin: 30px 0;
+            color: #64748b;
+            position: relative;
+        }
+        .divider::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: #334155;
+        }
+        .divider span {
+            background: #1e293b;
+            padding: 0 20px;
+        }
+        .social-buttons {
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+        }
+        .social-btn {
+            flex: 1;
+            padding: 16px;
+            background: #334155;
+            color: white;
+            border: none;
+            border-radius: 16px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            transition: 0.3s;
+            text-decoration: none;
+        }
+        .social-btn:hover {
+            background: #475569;
+            transform: translateY(-2px);
+        }
+        
+        .links {
+            text-align: center;
+            margin-top: 30px;
+            color: #94a3b8;
+            font-size: 14px;
+        }
+        .links a {
+            color: #a78bfa;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        .error {
+            background: rgba(239,68,68,0.2);
+            color: #fca5a5;
+            padding: 15px;
+            border-radius: 12px;
+            text-align: center;
+            margin-bottom: 20px;
+            border-left: 4px solid #ef4444;
+        }
+
+        /* Scroll to Top Button */
+        #scrollTopBtn {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            z-index: 99;
+            background: #28a745;
+            color: white;
+            border: none;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            font-size: 20px;
+            cursor: pointer;
+            box-shadow: 0 8px 25px rgba(40,167,69,0.4);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+        #scrollTopBtn:hover {
+            background: #218838;
+            transform: translateY(-5px);
+        }
+        #scrollTopBtn.show {
+            display: flex;
+        }
+
+        @media (max-width: 992px) {
+            .login-wrapper {
+                flex-direction: column;
+                height: auto;
+                margin: 20px;
+            }
+            .left-image {
+                height: 300px;
+                padding: 40px;
+            }
+            .left-image h2 {
+                font-size: 28px;
+            }
+            .right-form {
+                padding: 40px 30px;
+            }
+            .social-buttons {
+                flex-direction: column;
+            }
+        }
+    </style>
 </head>
 <body>
     <div class="container">
-        <div class="header">
-            <div class="logo">WALKON</div>
-            <h2 class="headline">Welcome Back</h2>
-            <p class="subline">Log in to manage your shoe listings</p>
-        </div>
-        <div style="padding:40px 30px;">
-            <form id="loginform">
-                <div style="margin-bottom:20px;">
-                    <input type="email" name="email" placeholder="Email" style="width:100%; padding:14px; border-radius:30px; border:1px solid #ddd;" required>
-                </div>
-                <div style="margin-bottom:20px;">
-                    <input type="password" name="password" placeholder="Password" style="width:100%; padding:14px; border-radius:30px; border:1px solid #ddd;" required>
-                </div>
-                <button type="submit" class="btn">Log In</button>
-            </form>
+        <div class="login-wrapper">
+            <!-- Left Side -->
+            <div class="left-image">
+                <!-- Video Background -->
+                <video autoplay muted loop playsinline poster="https://images.unsplash.com/photo-1606107557195-0e29a4b5b4aa?ixlib=rb-4.0.3&auto=format&fit=crop&w=928&q=80">
+                    <source src="https://videos.pexels.com/video-files/3209267/3209267-hd_1920_1080_25fps.mp4" type="video/mp4">
+                    Your browser does not support the video tag.
+                </video>
+                <h2>Capturing Steps,<br>Creating Success</h2>
+            </div>
 
-            <p style="margin-top:30px;"><a href="signup.php" class="link">New supplier? Sign up here</a></p>
+            <!-- Right Side -->
+            <div class="right-form">
+                <div class="logo">
+                    <h1>WALKON</h1>
+                </div>
+
+                <div class="welcome-text">
+                    <h2>Welcome to WALKON Shoes!</h2>
+                    <p>Log in to manage your shoe listings across our multi-channel e-commerce platform</p>
+                </div>
+
+                <?php if ($error): ?>
+                    <div class="error"><?php echo htmlspecialchars($error); ?></div>
+                <?php endif; ?>
+
+                <form method="POST">
+                    <div class="form-group">
+                        <input type="email" name="email" value="<?php echo isset($_POST['email']) ? htmlspecialchars($_POST['email']) : ''; ?>" required placeholder="Email">
+                    </div>
+
+                    <div class="form-group password-group">
+                        <input type="password" name="password" id="password" required placeholder="Enter your password">
+                        <i class="fas fa-eye password-toggle" onclick="togglePassword()"></i>
+                    </div>
+
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="remember">
+                        <label for="remember">Remember me</label>
+                    </div>
+                       <div class="links" style="text-align:center; margin-top:20px;">
+                    <a href="forgot_password.php" style="color:#a78bfa; font-size:14px;">Forgot Password?</a>
+                </div>
+
+                    <button type="submit" class="btn-login">Log In</button>
+                    
+                       
+  
+                </form>
+
+                <div class="divider"><span>Or sign in with</span></div>
+
+                <div class="social-buttons">
+                   <a href="google-login.php" class="social-btn google" style="background:white; color:#555; border:1px solid #ddd;">
+                        <img src="google_logo.png" width="20" alt="Google">
+                        Sign in with Google
+                    </a>
+                    <a href="#" class="social-btn" style="background-color: #000000; color: white; border: 1px solid #000000;">
+                        <i class="fab fa-apple" style="font-size:20px;"></i>
+                        Apple
+                    </a>
+                </div>
+
+                <div class="links">
+                    Don't have an account? <a href="register.php">Sign up</a>
+                </div>
+            </div>
         </div>
     </div>
 
+    <!-- Scroll to Top Button -->
+    <button id="scrollTopBtn" title="Go to top">
+        <i class="fas fa-arrow-up"></i>
+    </button>
+
     <script>
-        document.getElementById('loginform').onsubmit = function(e) {
-            e.preventDefault();
-            const fd = new FormData(this);
-            fetch('login-process.php', {method:'POST', body:fd})
-            .then(r => r.json())
-            .then(data => {
-                if (data.success) window.location.href = 'products.php';
-                else alert('Invalid login');
-            });
+        function togglePassword() {
+            const field = document.getElementById('password');
+            const icon = field.nextElementSibling;
+            if (field.type === "password") {
+                field.type = "text";
+                icon.classList.replace("fa-eye", "fa-eye-slash");
+            } else {
+                field.type = "password";
+                icon.classList.replace("fa-eye-slash", "fa-eye");
+            }
+        }
+
+        // Scroll to Top Button
+        const scrollBtn = document.getElementById("scrollTopBtn");
+        window.onscroll = function() {
+            if (document.body.scrollTop > 300 || document.documentElement.scrollTop > 300) {
+                scrollBtn.classList.add("show");
+            } else {
+                scrollBtn.classList.remove("show");
+            }
+        };
+        scrollBtn.onclick = function() {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         };
     </script>
 </body>
