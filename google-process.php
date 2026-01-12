@@ -49,9 +49,16 @@ if ($action === 'cancel') {
                 ->execute([$google_id, $existing_user['id']]);
         }
         
+        // Fetch full user data to get names
+        $stmt = $pdo->prepare("SELECT first_name, last_name FROM users WHERE id = ?");
+        $stmt->execute([$existing_user['id']]);
+        $user_data = $stmt->fetch();
+
         // Set session variables for logged-in user
         $_SESSION['user_id'] = $existing_user['id'];
         $_SESSION['email'] = $email;
+        $_SESSION['first_name'] = $user_data['first_name'];
+        $_SESSION['last_name'] = $user_data['last_name'];
         
     } else {
         // New user - Create account
@@ -67,6 +74,8 @@ if ($action === 'cancel') {
         // Set session variables for logged-in user
         $_SESSION['user_id'] = $new_id;
         $_SESSION['email'] = $email;
+        $_SESSION['first_name'] = $first_name;
+        $_SESSION['last_name'] = $last_name;
     }
     
     // Clear all temporary Google session data

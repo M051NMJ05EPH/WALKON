@@ -8,6 +8,9 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 $email = $_SESSION['email'];
+$first_name = $_SESSION['first_name'] ?? '';
+$last_name = $_SESSION['last_name'] ?? '';
+$display_name = trim($first_name . ' ' . $last_name) ?: $email;
 ?>
 
 <!DOCTYPE html>
@@ -99,7 +102,7 @@ $email = $_SESSION['email'];
 
     <div class="container">
         <div class="welcome-card">
-            <h2>Welcome back, <?php echo htmlspecialchars($email); ?>!</h2>
+            <h2>Welcome, <?php echo htmlspecialchars($display_name); ?></h2>
             <p>Manage your shoe listings across Amazon, Flipkart, Shopify, Instagram, TikTok Shop, eBay, and more – all in one place.</p>
         </div>
 
@@ -130,6 +133,14 @@ $email = $_SESSION['email'];
                 <h3>Sales Analytics</h3>
                 <p>Track performance and earnings.</p>
                 <a href="analytics.php" class="btn">View Report</a>
+            </div>
+
+            <!-- My Orders (New) -->
+            <div class="card">
+                <i class="fas fa-shopping-bag"></i>
+                <h3>My Orders</h3>
+                <p>Track customer orders and payment status.</p>
+                <a href="my_orders.php" class="btn">View Orders</a>
             </div>
 
             <!-- Smart Pricing (New) -->

@@ -391,6 +391,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </div>
 
             <div class="btn-group" style="justify-content: flex-end;">
+                <a href="my_listings.php" class="btn btn-secondary" style="margin-right:10px; text-decoration:none;">Cancel</a>
                 <button type="button" class="btn btn-primary" onclick="nextStep(1)">Next Step</button>
             </div>
         </div>
@@ -444,7 +445,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </div>
 
             <div class="btn-group">
-                <button type="button" class="btn btn-secondary" onclick="prevStep(2)">Back</button>
+                <div>
+                    <button type="button" class="btn btn-secondary" onclick="prevStep(2)">Back</button>
+                    <a href="my_listings.php" class="btn btn-secondary" style="margin-left:10px; text-decoration:none; background:#f8d7da; color:#721c24;">Cancel</a>
+                </div>
                 <button type="button" class="btn btn-primary" onclick="nextStep(2)">Next Step</button>
             </div>
         </div>
@@ -462,7 +466,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </label>
                 <label class="channel-card" onclick="toggleChannel(this)">
                     <input type="checkbox" name="channels[]" value="Flipkart" class="channel-checkbox">
-                    <i class="fas fa-shopping-bag"></i>
+                    <i class="fas fa-cart-shopping"></i>
                     <span>Flipkart</span>
                 </label>
                 <label class="channel-card" onclick="toggleChannel(this)">
@@ -488,14 +492,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </div>
 
             <div class="btn-group">
-                <button type="button" class="btn btn-secondary" onclick="prevStep(3)">Back</button>
+                <div>
+                    <button type="button" class="btn btn-secondary" onclick="prevStep(3)">Back</button>
+                    <a href="my_listings.php" class="btn btn-secondary" style="margin-left:10px; text-decoration:none; background:#f8d7da; color:#721c24;">Cancel</a>
+                </div>
                 <button type="submit" class="btn btn-primary">Publish & Sync</button>
             </div>
         </div>
     </form>
     
-    <div style="text-align:center;">
-        <a href="dashboard.php" class="nav-back">Cancel and return to Dashboard</a>
+    <div style="text-align:center; margin-top: 30px; display:flex; justify-content:center; gap:20px;">
+        <a href="my_listings.php" class="nav-back">Cancel and return to My Listings</a>
+        <a href="dashboard.php" class="nav-back" style="color:var(--primary); font-weight:600;"><i class="fas fa-home"></i> Back to Dashboard</a>
     </div>
 </div>
 

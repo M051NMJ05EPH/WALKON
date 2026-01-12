@@ -161,6 +161,7 @@ function hasChannel($channelStr, $target) {
                     <th style="width: 30%;">Product</th>
                     <th style="text-align:center;">Amazon</th>
                     <th style="text-align:center;">Shopify</th>
+                    <th style="text-align:center;">Flipkart</th>
                     <th style="text-align:center;">Instagram</th>
                     <th style="text-align:center;">TikTok</th>
                     <th style="text-align:center;">eBay</th>
@@ -214,6 +215,13 @@ function hasChannel($channelStr, $target) {
                             </td>
                             <td style="text-align:center;">
                                 <?php if (hasChannel($ch, 'Shopify')): ?>
+                                    <span class="status-icon synced"><i class="fas fa-check"></i></span>
+                                <?php else: ?>
+                                    <span class="status-icon not-synced"><i class="fas fa-minus"></i></span>
+                                <?php endif; ?>
+                            </td>
+                            <td style="text-align:center;">
+                                <?php if (hasChannel($ch, 'Flipkart')): ?>
                                     <span class="status-icon synced"><i class="fas fa-check"></i></span>
                                 <?php else: ?>
                                     <span class="status-icon not-synced"><i class="fas fa-minus"></i></span>
