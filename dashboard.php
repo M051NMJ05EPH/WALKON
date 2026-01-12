@@ -102,7 +102,7 @@ $display_name = trim($first_name . ' ' . $last_name) ?: $email;
 
     <div class="container">
         <div class="welcome-card">
-            <h2>Welcome, <?php echo htmlspecialchars($display_name); ?></h2>
+            <h2>Welcome back, <?php echo htmlspecialchars($display_name); ?>!</h2>
             <p>Manage your shoe listings across Amazon, Flipkart, Shopify, Instagram, TikTok Shop, eBay, and more – all in one place.</p>
         </div>
 

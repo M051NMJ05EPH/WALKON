@@ -466,7 +466,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </label>
                 <label class="channel-card" onclick="toggleChannel(this)">
                     <input type="checkbox" name="channels[]" value="Flipkart" class="channel-checkbox">
-                    <i class="fas fa-cart-shopping"></i>
+                    <i class="fas fa-shopping-bag"></i>
                     <span>Flipkart</span>
                 </label>
                 <label class="channel-card" onclick="toggleChannel(this)">

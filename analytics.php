@@ -32,7 +32,7 @@ $total_value = 0;
 $total_stock = 0;
 $categories = [];
 $channel_counts = [
-    'Amazon' => 0, 'Shopify' => 0, 'Flipkart' => 0, 'Instagram' => 0, 'TikTok' => 0, 'eBay' => 0
+    'Amazon' => 0, 'Shopify' => 0, 'Instagram' => 0, 'TikTok' => 0, 'eBay' => 0
 ];
 
 foreach ($products as $p) {
@@ -233,10 +233,6 @@ arsort($categories);
                 <li class="data-item channel-item">
                     <span><i class="fab fa-shopify"></i> Shopify</span>
                     <span class="data-value"><?php echo $channel_counts['Shopify']; ?></span>
-                </li>
-                <li class="data-item channel-item">
-                    <span><i class="fas fa-cart-shopping"></i> Flipkart</span>
-                    <span class="data-value"><?php echo $channel_counts['Flipkart']; ?></span>
                 </li>
                 <li class="data-item channel-item">
                     <span><i class="fab fa-instagram"></i> Instagram</span>
