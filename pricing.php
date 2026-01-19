@@ -49,8 +49,8 @@ session_start();
     .pricing-header p { font-size: 1.2rem; opacity: 0.8; max-width: 600px; margin: 0 auto; }
 
     .pricing-grid {
-        display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-        gap: 2rem; max-width: 1200px; margin: -50px auto 100px; padding: 0 2rem;
+        display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 2rem; max-width: 1400px; margin: -50px auto 100px; padding: 0 2rem;
     }
     .pricing-card {
         background: white; border-radius: 24px; padding: 3rem 2rem;
@@ -104,7 +104,7 @@ session_start();
       <a href="index.php">Home</a>
       <a href="index.php#features">Features</a>
       <a href="login.php" class="btn btn-outline">Login</a>
-      <a href="register.php" class="btn btn-primary">Start Free Trial</a>
+      <a href="register.php" class="btn btn-primary">Get Started</a>
     </div>
   </div>
 </nav>
@@ -118,6 +118,19 @@ session_start();
 <!-- Pricing Grid -->
 <div class="pricing-grid">
     
+    <!-- Free -->
+    <div class="pricing-card">
+        <div class="plan-name">Free</div>
+        <div class="plan-price">$0<span>/mo</span></div>
+        <ul class="features">
+            <li><i class="fas fa-check-circle"></i> 10 Product Listings</li>
+            <li><i class="fas fa-check-circle"></i> 1 Channel (WalkOn Store)</li>
+            <li><i class="fas fa-check-circle"></i> Weekly Sync</li>
+            <li><i class="fas fa-check-circle"></i> Basic Analytics</li>
+        </ul>
+        <a href="register.php?plan=free" class="btn btn-outline" style="width:100%; text-align:center;">Get Started</a>
+    </div>
+    
     <!-- Starter -->
     <div class="pricing-card">
         <div class="plan-name">Starter</div>
@@ -128,7 +141,7 @@ session_start();
             <li><i class="fas fa-check-circle"></i> Daily Sync</li>
             <li><i class="fas fa-check-circle"></i> Basic Analytics</li>
         </ul>
-        <a href="register.php?plan=starter" class="btn btn-outline" style="width:100%; text-align:center;">Start Free Trial</a>
+        <a href="register.php?plan=starter" class="btn btn-outline" style="width:100%; text-align:center;">Select Plan</a>
     </div>
 
     <!-- Pro (Popular) -->
@@ -143,7 +156,7 @@ session_start();
             <li><i class="fas fa-check-circle"></i> Smart Pricing Engine</li>
             <li><i class="fas fa-check-circle"></i> Bulk Operations</li>
         </ul>
-        <a href="register.php?plan=pro" class="btn btn-primary" style="width:100%; text-align:center;">Start Free Trial</a>
+        <a href="register.php?plan=pro" class="btn btn-primary" style="width:100%; text-align:center;">Select Plan</a>
     </div>
 
     <!-- Enterprise -->

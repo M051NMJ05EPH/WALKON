@@ -278,8 +278,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </div>
 
             <div class="right-form">
-                <div class="logo">
-                    <h1>WALKON</h1>
+                <div class="logo" style="display: flex; align-items: center; justify-content: center; gap: 15px; margin-bottom: 30px;">
+                    <svg width="50" height="50" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M2 17C2 17 2 19 4 19H20C22 19 22 17 22 17V15L18 10H14L10 12L5 14L2 17Z" fill="#10b981"/>
+                        <path d="M14 10L12 7H9L7 9" stroke="#10b981" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M11 11.5L12 13.5M14 10.5L15 12.5M17 9.5L18 11.5" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+                    </svg>
+                    <span style="font-size: 32px; font-weight: 800; color: white; letter-spacing: -2px;">WALKON</span>
                 </div>
 
                 <div class="welcome-text">

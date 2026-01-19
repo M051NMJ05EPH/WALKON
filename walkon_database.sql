@@ -1,17 +1,18 @@
 -- ============================================
--- WALKON SHOES - Complete Database Schema
+-- WALKON SHOES - Consolidated Master Database Schema
 -- ============================================
--- This script creates the complete database structure for the WalkOn Shoes platform
--- Run this script in phpMyAdmin or MySQL command line
+-- Version: 2.1 (Ultra-Granular Normalized Schema)
+-- Description: This script contains the complete database structure, 
+-- including users, sellers, products (normalized), logs, and analytics.
 
--- Create Database
 CREATE DATABASE IF NOT EXISTS walkon_shoes;
 USE walkon_shoes;
 
 -- ============================================
--- TABLE: users
--- Stores user account information
+-- 1. CORE ENTITIES
 -- ============================================
+
+-- TABLE: users (Account management)
 CREATE TABLE IF NOT EXISTS users (
     id INT AUTO_INCREMENT PRIMARY KEY,
     first_name VARCHAR(50) NOT NULL,
@@ -24,15 +25,10 @@ CREATE TABLE IF NOT EXISTS users (
     reset_expires DATETIME,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    INDEX idx_email (email),
-    INDEX idx_verification (verification_token),
-    INDEX idx_reset_token (reset_token)
+    INDEX idx_email (email)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ============================================
--- TABLE: sellers
--- Stores seller/business information
--- ============================================
+-- TABLE: sellers (Business profiles)
 CREATE TABLE IF NOT EXISTS sellers (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
@@ -49,14 +45,237 @@ CREATE TABLE IF NOT EXISTS sellers (
     is_active TINYINT(1) DEFAULT 1,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    INDEX idx_email (email),
-    INDEX idx_business (business_name)
+    INDEX idx_email (email)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================
--- TABLE: products
--- Stores product listings
+-- 2. PRODUCT INFRASTRUCTURE (Support Tables)
 -- ============================================
+
+CREATE TABLE IF NOT EXISTS categories (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL UNIQUE,
+    image_url VARCHAR(500),
+    description TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS sub_categories (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    category_id INT NOT NULL,
+    name VARCHAR(100) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS brands (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL UNIQUE,
+    logo_url VARCHAR(500),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS materials (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL UNIQUE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================
+-- 3. PRODUCT CATALOG (Ultra-Granular Normalize)
+-- ============================================
+
+-- Base Product Information
+CREATE TABLE IF NOT EXISTS product_base (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    seller_id INT NOT NULL,
+    category_id INT,
+    sub_category_id INT,
+    name VARCHAR(255) NOT NULL,
+    status ENUM('draft', 'published', 'scheduled') DEFAULT 'draft',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (seller_id) REFERENCES sellers(id) ON DELETE CASCADE,
+    FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL,
+    FOREIGN KEY (sub_category_id) REFERENCES sub_categories(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Descriptions
+CREATE TABLE IF NOT EXISTS product_descriptions (
+    product_id INT PRIMARY KEY,
+    content TEXT,
+    FOREIGN KEY (product_id) REFERENCES product_base(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Inventory & Stock
+CREATE TABLE IF NOT EXISTS product_stock (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    product_id INT NOT NULL,
+    quantity INT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (product_id) REFERENCES product_base(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Pricing (Includes Smart Pricing config)
+CREATE TABLE IF NOT EXISTS product_prices (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    product_id INT NOT NULL,
+    price DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
+    min_price DECIMAL(10, 2),
+    max_price DECIMAL(10, 2),
+    smart_pricing_status BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (product_id) REFERENCES product_base(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- SKUs
+CREATE TABLE IF NOT EXISTS product_skus (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    product_id INT NOT NULL,
+    sku VARCHAR(100) UNIQUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (product_id) REFERENCES product_base(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Media (Images/Videos)
+CREATE TABLE IF NOT EXISTS product_media (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    product_id INT NOT NULL,
+    url VARCHAR(500) NOT NULL,
+    type ENUM('image', 'video') DEFAULT 'image',
+    is_primary BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (product_id) REFERENCES product_base(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Technical Specs
+CREATE TABLE IF NOT EXISTS product_specs (
+    product_id INT PRIMARY KEY,
+    brand_id INT,
+    gender VARCHAR(50),
+    heel_height VARCHAR(50),
+    outer_material VARCHAR(100),
+    season VARCHAR(100),
+    shoe_type VARCHAR(100),
+    occasion VARCHAR(100),
+    FOREIGN KEY (product_id) REFERENCES product_base(id) ON DELETE CASCADE,
+    FOREIGN KEY (brand_id) REFERENCES brands(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Sales Channels
+CREATE TABLE IF NOT EXISTS product_channels (
+    product_id INT NOT NULL,
+    channel_name VARCHAR(50) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (product_id, channel_name),
+    FOREIGN KEY (product_id) REFERENCES product_base(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================
+-- 4. ORDERS & TRANSACTIONS
+-- ============================================
+
+CREATE TABLE IF NOT EXISTS orders (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    seller_id INT NOT NULL,
+    product_id INT NOT NULL,
+    customer_name VARCHAR(100),
+    customer_email VARCHAR(100),
+    customer_phone VARCHAR(20),
+    shipping_address TEXT,
+    quantity INT NOT NULL,
+    unit_price DECIMAL(10, 2) NOT NULL,
+    total_price DECIMAL(10, 2) NOT NULL,
+    status ENUM('pending', 'processing', 'shipped', 'delivered', 'cancelled') DEFAULT 'pending',
+    order_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (seller_id) REFERENCES sellers(id) ON DELETE CASCADE,
+    FOREIGN KEY (product_id) REFERENCES product_base(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================
+-- 5. ACTIVITY LOGS & ANALYTICS
+-- ============================================
+
+-- Track automated repricing
+CREATE TABLE IF NOT EXISTS smart_pricing_log (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    seller_id INT NOT NULL,
+    product_id INT NOT NULL,
+    old_price DECIMAL(10, 2),
+    new_price DECIMAL(10, 2) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (seller_id) REFERENCES sellers(id) ON DELETE CASCADE,
+    FOREIGN KEY (product_id) REFERENCES product_base(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Track bulk actions (Delete, Status Change, Price Adj)
+CREATE TABLE IF NOT EXISTS bulk_operations_log (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    seller_id INT NOT NULL,
+    action_type VARCHAR(50) NOT NULL,
+    affected_count INT DEFAULT 0,
+    action_value VARCHAR(255),
+    details TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (seller_id) REFERENCES sellers(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Track channel synchronization status
+CREATE TABLE IF NOT EXISTS product_sync_logs (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    seller_id INT NOT NULL,
+    product_id INT NOT NULL,
+    channel VARCHAR(50) NOT NULL,
+    status ENUM('pending', 'success', 'error', 'failed') DEFAULT 'pending',
+    message TEXT,
+    sync_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (seller_id) REFERENCES sellers(id) ON DELETE CASCADE,
+    FOREIGN KEY (product_id) REFERENCES product_base(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Aggregated Daily Sales Performance
+CREATE TABLE IF NOT EXISTS daily_sales_analytics (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    seller_id INT NOT NULL,
+    recorded_date DATE NOT NULL,
+    total_revenue DECIMAL(15, 2) DEFAULT 0.00,
+    total_orders INT DEFAULT 0,
+    units_sold INT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (seller_id) REFERENCES sellers(id) ON DELETE CASCADE,
+    UNIQUE KEY unique_seller_date (seller_id, recorded_date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================
+-- 6. ADDITIONAL MODULES
+-- ============================================
+
+CREATE TABLE IF NOT EXISTS notifications (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    seller_id INT NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    message TEXT,
+    is_read TINYINT(1) DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (seller_id) REFERENCES sellers(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS api_credentials (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    seller_id INT NOT NULL,
+    channel_name VARCHAR(50) NOT NULL,
+    api_key VARCHAR(255),
+    api_secret VARCHAR(255),
+    shop_url VARCHAR(255),
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (seller_id) REFERENCES sellers(id) ON DELETE CASCADE,
+    UNIQUE KEY unique_seller_channel (seller_id, channel_name)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================
+-- [LEGACY] PRODUCTS TABLE (For compatibility)
+-- ============================================
+-- This table is being phased out in favor of product_base/prices/stock.
 CREATE TABLE IF NOT EXISTS products (
     id INT AUTO_INCREMENT PRIMARY KEY,
     seller_id INT NOT NULL,
@@ -76,168 +295,47 @@ CREATE TABLE IF NOT EXISTS products (
     sales INT DEFAULT 0,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (seller_id) REFERENCES sellers(id) ON DELETE CASCADE,
-    INDEX idx_seller (seller_id),
-    INDEX idx_sku (sku),
-    INDEX idx_category (category),
-    INDEX idx_status (status),
-    INDEX idx_created (created_at)
+    FOREIGN KEY (seller_id) REFERENCES sellers(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================
--- TABLE: orders
--- Stores order information
+-- 7. NEW MODULES (UI & SETTINGS)
 -- ============================================
-CREATE TABLE IF NOT EXISTS orders (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    seller_id INT NOT NULL,
-    product_id INT NOT NULL,
-    customer_name VARCHAR(100),
-    customer_email VARCHAR(100),
-    customer_phone VARCHAR(20),
-    shipping_address TEXT,
-    quantity INT NOT NULL,
-    unit_price DECIMAL(10, 2) NOT NULL,
-    total_amount DECIMAL(10, 2) NOT NULL,
-    channel VARCHAR(50),
-    order_status VARCHAR(50) DEFAULT 'pending',
-    payment_status VARCHAR(50) DEFAULT 'pending',
-    tracking_number VARCHAR(100),
-    order_date DATETIME DEFAULT CURRENT_TIMESTAMP,
-    shipped_date DATETIME,
-    delivered_date DATETIME,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (seller_id) REFERENCES sellers(id) ON DELETE CASCADE,
-    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
-    INDEX idx_seller (seller_id),
-    INDEX idx_product (product_id),
-    INDEX idx_status (order_status),
-    INDEX idx_order_date (order_date)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ============================================
--- TABLE: sync_logs
--- Tracks synchronization activities across channels
--- ============================================
-CREATE TABLE IF NOT EXISTS sync_logs (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    seller_id INT NOT NULL,
-    product_id INT,
-    channel VARCHAR(50) NOT NULL,
-    sync_type VARCHAR(50) NOT NULL,
-    status VARCHAR(20) NOT NULL,
-    message TEXT,
-    sync_date DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (seller_id) REFERENCES sellers(id) ON DELETE CASCADE,
-    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE SET NULL,
-    INDEX idx_seller (seller_id),
-    INDEX idx_product (product_id),
-    INDEX idx_channel (channel),
-    INDEX idx_date (sync_date)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- ============================================
--- TABLE: pricing_history
--- Tracks price changes for analytics
--- ============================================
-CREATE TABLE IF NOT EXISTS pricing_history (
+-- TABLE: product_colors (Product variants)
+CREATE TABLE IF NOT EXISTS product_colors (
     id INT AUTO_INCREMENT PRIMARY KEY,
     product_id INT NOT NULL,
-    old_price DECIMAL(10, 2),
-    new_price DECIMAL(10, 2) NOT NULL,
-    change_reason VARCHAR(100),
-    changed_by VARCHAR(50),
-    changed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
-    INDEX idx_product (product_id),
-    INDEX idx_date (changed_at)
+    color_name VARCHAR(50),
+    color_code VARCHAR(10),
+    FOREIGN KEY (product_id) REFERENCES product_base(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ============================================
--- TABLE: analytics
--- Stores analytics and metrics data
--- ============================================
-CREATE TABLE IF NOT EXISTS analytics (
+-- TABLE: product_sizes (Product variants)
+CREATE TABLE IF NOT EXISTS product_sizes (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    seller_id INT NOT NULL,
-    product_id INT,
-    metric_type VARCHAR(50) NOT NULL,
-    metric_value DECIMAL(15, 2),
-    metric_data JSON,
-    recorded_date DATE NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (seller_id) REFERENCES sellers(id) ON DELETE CASCADE,
-    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE SET NULL,
-    INDEX idx_seller (seller_id),
-    INDEX idx_product (product_id),
-    INDEX idx_metric (metric_type),
-    INDEX idx_date (recorded_date)
+    product_id INT NOT NULL,
+    size_value VARCHAR(20),
+    FOREIGN KEY (product_id) REFERENCES product_base(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ============================================
--- TABLE: notifications
--- Stores user notifications
--- ============================================
-CREATE TABLE IF NOT EXISTS notifications (
+-- TABLE: site_settings (Global dynamic configuration)
+CREATE TABLE IF NOT EXISTS site_settings (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT NOT NULL,
-    title VARCHAR(200) NOT NULL,
-    message TEXT NOT NULL,
-    type VARCHAR(50) DEFAULT 'info',
-    is_read TINYINT(1) DEFAULT 0,
-    link VARCHAR(255),
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    INDEX idx_user (user_id),
-    INDEX idx_read (is_read),
-    INDEX idx_created (created_at)
+    setting_key VARCHAR(50) NOT NULL UNIQUE,
+    setting_value TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ============================================
--- TABLE: api_credentials
--- Stores API credentials for various channels
--- ============================================
-CREATE TABLE IF NOT EXISTS api_credentials (
+-- TABLE: marketplaces (Channel details for landing page)
+CREATE TABLE IF NOT EXISTS marketplaces (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    seller_id INT NOT NULL,
-    channel VARCHAR(50) NOT NULL,
-    api_key VARCHAR(255),
-    api_secret VARCHAR(255),
-    access_token TEXT,
-    refresh_token TEXT,
-    expires_at DATETIME,
+    name VARCHAR(100) NOT NULL UNIQUE,
+    logo_url VARCHAR(500),
+    description TEXT,
+    website_url VARCHAR(500),
     is_active TINYINT(1) DEFAULT 1,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (seller_id) REFERENCES sellers(id) ON DELETE CASCADE,
-    INDEX idx_seller (seller_id),
-    INDEX idx_channel (channel),
-    UNIQUE KEY unique_seller_channel (seller_id, channel)
+    display_order INT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- ============================================
--- Insert Sample Data (Optional)
--- ============================================
-
--- Sample User
-INSERT INTO users (first_name, last_name, email, password, is_verified) VALUES
-('John', 'Doe', 'john.doe@example.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 1),
-('Jane', 'Smith', 'jane.smith@example.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 1);
-
--- Sample Seller
-INSERT INTO sellers (name, email, password, business_name) VALUES
-('John Doe', 'john.doe@example.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Doe Footwear'),
-('Jane Smith', 'jane.smith@example.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Smith Shoes Co');
-
--- Sample Products
-INSERT INTO products (seller_id, product_name, sku, description, category, price, quantity, channels, status) VALUES
-(1, 'Nike Air Max 270', 'NIKE-AM270-BLK-10', 'Comfortable running shoes with air cushioning', 'Sneakers', 149.99, 50, 'Amazon,Flipkart', 'published'),
-(1, 'Adidas Ultraboost 22', 'ADIDAS-UB22-WHT-9', 'Premium running shoes with boost technology', 'Sports', 179.99, 30, 'Amazon,Shopify', 'published'),
-(2, 'Puma RS-X', 'PUMA-RSX-RED-11', 'Retro-inspired lifestyle sneakers', 'Sneakers', 99.99, 75, 'Flipkart,Instagram', 'published');
-
--- ============================================
--- Database Setup Complete
--- ============================================
--- You can now use this database with your WalkOn application
--- Default password for sample users: 'password' (hashed)

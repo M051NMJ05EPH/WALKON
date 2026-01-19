@@ -13,7 +13,10 @@ $user_id = $_SESSION['user_id'];
 
 try {
     // 1. Fetch enabled products
-    $stmt = $pdo->prepare("SELECT id, price, min_price, max_price FROM products WHERE seller_id = ? AND smart_pricing_status = 1");
+    $stmt = $pdo->prepare("SELECT pp.product_id as id, pp.price, pp.min_price, pp.max_price 
+                           FROM product_prices pp 
+                           JOIN product_base pb ON pp.product_id = pb.id 
+                           WHERE pb.seller_id = ? AND pp.smart_pricing_status = 1");
     $stmt->execute([$user_id]);
     $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
@@ -36,9 +39,14 @@ try {
             // Round to 2 decimals
             $new_price = round($new_price, 2);
             
-            // Update DB
-            $update = $pdo->prepare("UPDATE products SET price = ? WHERE id = ?");
+            // Update DB (targeting product_prices)
+            $update = $pdo->prepare("UPDATE product_prices SET price = ? WHERE product_id = ?");
             $update->execute([$new_price, $p['id']]);
+
+            // 3. Log the change
+            $log = $pdo->prepare("INSERT INTO smart_pricing_log (seller_id, product_id, old_price, new_price) VALUES (?, ?, ?, ?)");
+            $log->execute([$user_id, $p['id'], $p['price'], $new_price]);
+            
             $count++;
         }
     }

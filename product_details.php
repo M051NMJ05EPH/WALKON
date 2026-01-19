@@ -2,58 +2,52 @@
 session_start();
 include 'config.php';
 
-if (!isset($_SESSION['user_id'])) {
-    header("Location: login.php");
-    exit();
+$product_id = isset($_GET['id']) ? intval($_GET['id']) : 0;
+
+if ($product_id <= 0) {
+    echo "Invalid Product ID.";
+    exit;
 }
 
-$product_id = $_GET['id'] ?? 0;
+// Fetch Product Details
+$stmt = $pdo->prepare("
+    SELECT pb.*, pp.price, pp.max_price, ps.sku, c.name as category_name, sc.name as sub_category_name, b.name as brand_name,
+           spec.heel_height, spec.outer_material, spec.season, spec.shoe_type, spec.occasion, spec.gender,
+           pd.content as description
+    FROM product_base pb
+    LEFT JOIN product_prices pp ON pb.id = pp.product_id
+    LEFT JOIN product_skus ps ON pb.id = ps.product_id
+    LEFT JOIN categories c ON pb.category_id = c.id
+    LEFT JOIN sub_categories sc ON pb.sub_category_id = sc.id
+    LEFT JOIN product_specs spec ON pb.id = spec.product_id
+    LEFT JOIN brands b ON spec.brand_id = b.id
+    LEFT JOIN product_descriptions pd ON pb.id = pd.product_id
+    WHERE pb.id = ?
+");
+$stmt->execute([$product_id]);
+$product = $stmt->fetch(PDO::FETCH_ASSOC);
 
-if (!$product_id) {
-    header("Location: my_listings.php");
-    exit();
+if (!$product) {
+    echo "Product not found.";
+    exit;
 }
 
-try {
-    $stmt = $pdo->prepare("SELECT * FROM products WHERE id = ?");
-    $stmt->execute([$product_id]);
-    $product = $stmt->fetch(PDO::FETCH_ASSOC);
+// Fetch Media
+$stmt_media = $pdo->prepare("SELECT * FROM product_media WHERE product_id = ? ORDER BY is_primary DESC");
+$stmt_media->execute([$product_id]);
+$media = $stmt_media->fetchAll(PDO::FETCH_ASSOC);
 
-    if (!$product) {
-        die("Product not found.");
-    }
+// Fetch Sizes
+$stmt_sizes = $pdo->prepare("SELECT size_value FROM product_sizes WHERE product_id = ?");
+$stmt_sizes->execute([$product_id]);
+$sizes = $stmt_sizes->fetchAll(PDO::FETCH_COLUMN);
 
-    // Process images
-    $images_raw = $product['images'];
-    $images = [];
-    if (!empty($images_raw)) {
-        $decoded = json_decode($images_raw, true);
-        $images = is_array($decoded) ? $decoded : [$images_raw];
-    }
-    
-    // Default image if none exist
-    if (empty($images)) {
-        $images = ['https://via.placeholder.com/600x600?text=No+Image+Available'];
-    }
-    
-    // Ensure all image paths are correct (handle local vs absolute)
-    foreach ($images as $k => $img) {
-        if (!empty($img) && !preg_match('/^http/', $img) && !file_exists($img)) {
-            // If it looks like a local path but doesn't exist, use a placeholder
-            // Unless it's just missing the leading slash or something similar we can fix
-        }
-    }
+// Fetch Colors
+$stmt_colors = $pdo->prepare("SELECT color_name FROM product_colors WHERE product_id = ?");
+$stmt_colors->execute([$product_id]);
+$colors = $stmt_colors->fetchAll(PDO::FETCH_COLUMN);
 
-    // Mock data for premium feel (since some fields might be missing in DB)
-    $brand = "SPARX"; // Placeholder brand
-    $rating = 4.1;
-    $reviews_count = 517;
-    $mrp = $product['price'] * 1.25; // Simulated M.R.P.
-    $discount = 22; // Simulated discount %
-    
-} catch (PDOException $e) {
-    die("Error fetching product details: " . $e->getMessage());
-}
+$main_image = !empty($media) ? $media[0]['url'] : 'https://via.placeholder.com/500';
 ?>
 
 <!DOCTYPE html>
@@ -61,341 +55,282 @@ try {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo htmlspecialchars($product['product_name']); ?> - WALKON</title>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <title><?php echo htmlspecialchars($product['name']); ?> - WALKON</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css"/>
     <style>
-        :root {
-            --primary: #28a745;
-            --secondary: #1e293b;
-            --text-dark: #333;
-            --text-light: #666;
-            --bg-light: #f8f9fa;
-            --border: #ddd;
-            --accent: #e44d26; /* For discounts/offers */
+        :root { --green: #16a34a; --gray-50: #f8fafc; --gray-900: #0f172a; }
+        body { font-family: 'Inter', sans-serif; background: var(--gray-50); color: var(--gray-900); }
+        
+        .navbar { background: white; padding: 1rem 2rem; box-shadow: 0 4px 20px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center; }
+        .logo { font-size: 1.8rem; font-weight: 900; color: var(--gray-900); text-decoration:none; }
+        .logo span { color: var(--green); }
+
+        .container { max-width: 1200px; margin: 40px auto; padding: 0 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 60px; }
+        
+        .image-gallery { display: flex; gap: 20px; }
+        .thumbnails { display: flex; flex-direction: column; gap: 15px; }
+        .thumb { width: 80px; height: 80px; border-radius: 12px; cursor: pointer; object-fit: cover; border: 2px solid transparent; transition: 0.3s; }
+        .thumb.active { border-color: var(--green); }
+        .main-img-wrap { flex: 1; border-radius: 24px; overflow: hidden; background: white; box-shadow: 0 10px 40px rgba(0,0,0,0.05); }
+        .main-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        
+        .product-info h1 { font-size: 2.5rem; font-weight: 800; line-height: 1.2; margin-bottom: 20px; }
+        .brand-badge { display: inline-block; background: #dcfce7; color: #166534; padding: 6px 12px; border-radius: 50px; font-weight: 700; font-size: 0.9rem; margin-bottom: 15px; text-transform: uppercase; }
+        
+        .price-area { margin-bottom: 30px; }
+        .price { font-size: 2.5rem; font-weight: 900; color: var(--green); }
+        .old-price { font-size: 1.2rem; color: #94a3b8; text-decoration: line-through; margin-left: 10px; }
+        
+        .specs-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-bottom: 30px; background: white; padding: 25px; border-radius: 16px; border: 1px solid #e2e8f0; }
+        .spec-item { font-size: 0.95rem; }
+        .spec-label { color: #64748b; display: block; font-size: 0.85rem; margin-bottom: 4px; }
+        .spec-value { font-weight: 600; color: var(--gray-900); }
+        
+        .selector-group { margin-bottom: 25px; }
+        .selector-label { font-weight: 600; margin-bottom: 10px; display: block; }
+        .size-box { display: inline-block; padding: 10px 15px; border: 2px solid #e2e8f0; border-radius: 12px; text-align: center; font-weight: 600; margin-right: 10px; cursor: pointer; transition: 0.2s; min-width: 60px; }
+        .size-box:hover, .size-box.active { border-color: var(--green); background: #f0fdf4; color: var(--green); }
+        
+        .color-dot { display: inline-block; width: 35px; height: 35px; border-radius: 50%; border: 2px solid #e2e8f0; margin-right: 12px; cursor: pointer; transition: 0.3s; position: relative; }
+        .color-dot:hover, .color-dot.active { border-color: var(--green); transform: scale(1.1); }
+        .color-dot.active::after { content: '\f00c'; font-family: 'Font Awesome 6 Free'; font-weight: 900; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-size: 12px; text-shadow: 0 0 4px rgba(0,0,0,0.5); }
+        
+        .actions-group { display: flex; gap: 20px; margin-top: 30px; }
+        .btn-cart { flex: 1.2; background: var(--green); color: white; border: none; padding: 18px 30px; border-radius: 50px; font-size: 1.1rem; font-weight: 700; cursor: pointer; transition: 0.3s; box-shadow: 0 10px 25px rgba(22,163,74,0.3); }
+        .btn-buy { flex: 1; background: var(--gray-900); color: white; border: 2px solid var(--gray-900); padding: 18px 30px; border-radius: 50px; font-size: 1.1rem; font-weight: 700; cursor: pointer; transition: 0.3s; }
+        .btn-cart:hover { transform: translateY(-3px); box-shadow: 0 15px 35px rgba(22,163,74,0.4); }
+        .btn-buy:hover { background: transparent; color: var(--gray-900); transform: translateY(-3px); }
+
+        .about-section { margin-top: 40px; }
+        .about-section h3 { font-size: 1.4rem; font-weight: 700; margin-bottom: 15px; }
+        .about-section p { color: #475569; line-height: 1.8; }
+
+        /* Footer Refined */
+        footer {
+          background: #05070A; border-top: 1px solid var(--gray-50);
+          padding: 80px 0 40px; color: #fff;
+          margin-top: 80px;
         }
-
-        * { margin:0; padding:0; box-sizing:border-box; font-family:'Poppins', sans-serif; }
-        body { background: white; color: var(--text-dark); }
-
-        .navbar {
-            padding: 15px 40px;
-            background: white;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            position: sticky;
-            top: 0;
-            z-index: 1000;
+        .footer-container {
+            max-width: 1400px; margin: 0 auto; padding: 0 2rem;
+            display: grid; grid-template-columns: 1.2fr 2fr; gap: 4rem;
         }
-        .navbar .logo { font-weight: 700; font-size: 24px; color: var(--primary); text-decoration: none; }
-        .back-btn { text-decoration: none; color: var(--text-dark); font-weight: 500; display: flex; align-items: center; gap: 8px; transition: 0.3s; }
-        .back-btn:hover { color: var(--primary); }
-
-        .container {
-            max-width: 1300px;
-            margin: 40px auto;
-            padding: 0 40px;
-            display: grid;
-            grid-template-columns: 1fr 1.2fr;
-            gap: 60px;
+        
+        /* Footer Card */
+        .footer-card {
+            background: #0f131f; /* Darker card background */
+            border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 24px; padding: 3rem;
+            display: flex; flex-direction: column; gap: 1.5rem;
         }
-
-        /* Left Column: Gallery */
-        .gallery-container {
-            display: flex;
-            gap: 20px;
+        .footer-logo {
+            display: flex; align-items: center; gap: 10px; text-decoration: none;
         }
-
-        .thumbnails {
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-            max-height: 600px;
-            overflow-y: auto;
-            scrollbar-width: none; /* Hide scrollbar for clean look */
+        .brand-text {
+            font-family: 'Playfair Display', serif; font-size: 24px; font-weight: 700; line-height: 1;
         }
-        .thumbnails::-webkit-scrollbar { display: none; }
-
-        .thumb {
-            width: 70px;
-            height: 90px;
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            cursor: pointer;
-            object-fit: cover;
-            transition: 0.2s;
-            background: #fff;
+        .footer-desc {
+            color: #94a3b8; font-size: 0.95rem; line-height: 1.6; margin-bottom: 0.5rem;
         }
-
-        .thumb:hover, .thumb.active {
-            border-color: var(--primary);
-            box-shadow: 0 0 0 2px rgba(40, 167, 69, 0.1);
+        
+        .contact-info { display: flex; flex-direction: column; gap: 0.8rem; }
+        .contact-item {
+            display: flex; align-items: center; gap: 10px;
+            color: #fff; font-size: 0.9rem;
         }
-
-        .main-image-view {
-            flex-grow: 1;
-            position: relative;
-            background: #fff;
-            border-radius: 12px;
-            border: 1px solid #f0f0f0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            height: 600px;
+        .contact-item i { color: var(--green); width: 20px; }
+        
+        .social-links {
+            display: flex; gap: 1rem; margin-top: 1rem;
         }
-
-        .main-image {
-            max-width: 100%;
-            max-height: 100%;
-            object-fit: contain;
-            transition: 0.3s ease;
+        .social-btn {
+            width: 40px; height: 40px; border-radius: 10px;
+            background: rgba(255,255,255,0.05);
+            display: flex; align-items: center; justify-content: center;
+            color: #94a3b8; text-decoration: none; transition: 0.3s;
         }
-
-        .share-btn {
-            position: absolute;
-            bottom: 20px;
-            right: 20px;
-            background: white;
-            border: 1px solid var(--border);
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        .social-btn:hover {
+            background: var(--green); color: #000; transform: translateY(-3px);
+        }
+        
+        /* Footer Grid */
+        .footer-nav-grid {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 2rem;
+        }
+        
+        .footer-col h4 {
+            color: var(--green); font-size: 0.85rem; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 1px; margin-bottom: 1.5rem;
+        }
+        
+        .footer-links { list-style: none; padding: 0; margin: 0; }
+        .footer-links li { margin-bottom: 1rem; }
+        .footer-links a {
+            color: #e2e8f0; text-decoration: none; font-size: 0.95rem;
             transition: 0.3s;
         }
-        .share-btn:hover { transform: scale(1.1); color: var(--primary); }
+        .footer-links a:hover { color: var(--green); padding-left: 5px; }
 
-        /* Right Column: Details */
-        .details-column {
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
-
-        .brand-name { color: #007185; font-size: 14px; font-weight: 500; text-decoration: none; }
-        .brand-name:hover { text-decoration: underline; }
-
-        .product-title { font-size: 28px; font-weight: 600; line-height: 1.3; color: #111; }
-
-        .rating-box { display: flex; align-items: center; gap: 10px; font-size: 14px; }
-        .stars { color: #ffa41c; }
-        .reviews-count { color: #007185; }
-
-        .price-section { border-top: 1px solid #eee; border-bottom: 1px solid #eee; padding: 20px 0; }
-        .discount-row { display: flex; align-items: baseline; gap: 15px; }
-        .discount-pct { color: #e44d26; font-size: 28px; font-weight: 300; }
-        .current-price { font-size: 28px; font-weight: 600; display: flex; align-items: flex-start; }
-        .current-price small { font-size: 16px; margin-top: 4px; margin-right: 2px; }
-        .mrp-row { color: #565959; font-size: 14px; margin-top: 5px; }
-        .mrp-row span { text-decoration: line-through; }
-
-        .tax-note { font-size: 12px; color: #565959; margin-top: 5px; }
-
-        /* Offers Section */
-        .offers-section { margin-top: 10px; }
-        .section-title { font-size: 16px; font-weight: 600; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; }
-        .offers-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
-        .offer-card { border: 1px solid var(--border); border-radius: 8px; padding: 15px; transition: 0.3s; cursor: pointer; }
-        .offer-card:hover { border-color: var(--primary); background: rgba(40, 167, 69, 0.02); }
-        .offer-card h4 { font-size: 14px; font-weight: 600; margin-bottom: 5px; }
-        .offer-card p { font-size: 13px; color: var(--text-light); line-height: 1.4; }
-        .offer-link { display: block; margin-top: 10px; color: #007185; font-size: 13px; font-weight: 500; text-decoration: none; }
-
-        /* Trust Badges */
-        .trust-badges { display: flex; justify-content: space-between; border-top: 1px solid #eee; padding-top: 20px; margin-top: 20px; }
-        .badge-item { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 8px; width: 80px; }
-        .badge-icon { background: #f8f9fa; width: 45px; height: 45px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 18px; color: var(--text-dark); border: 1px solid #eee; }
-        .badge-text { font-size: 11px; color: #007185; line-height: 1.2; font-weight: 500; }
-
-        /* Color/Size Selection */
-        .selection-section { margin-top: 20px; display: flex; flex-direction: column; gap: 20px; }
-        .selector { display: flex; flex-direction: column; gap: 10px; }
-        .selector-label { font-size: 14px; font-weight: 600; }
-        .selector-label span { font-weight: 400; color: #111; margin-left: 5px; }
-
-        .option-list { display: flex; gap: 10px; flex-wrap: wrap; }
-        
-        .color-option { 
-            width: 80px; 
-            border: 1px solid var(--border); 
-            border-radius: 8px; 
-            padding: 5px; 
-            cursor: pointer; 
-            text-align: center;
-        }
-        .color-option img { width: 100%; border-radius: 4px; margin-bottom: 4px; }
-        .color-option span { font-size: 11px; }
-        .color-option.active { border-color: var(--primary); box-shadow: 0 0 0 1px var(--primary); }
-
-        .size-option {
-            padding: 8px 16px; border: 1px solid var(--border); border-radius: 4px; font-size: 14px; cursor: pointer; transition: 0.2s;
-        }
-        .size-option:hover { background: #f0f2f2; border-color: #888c8c; }
-        .size-option.active { background: #fef8f2; border-color: #e77600; box-shadow: 0 0 3px rgba(228, 121, 17, 0.5); font-weight: 600; }
-
-        .btn-group { display: flex; gap: 15px; margin-top: 30px; }
-        .btn { flex: 1; padding: 15px; border-radius: 30px; font-weight: 600; cursor: pointer; transition: 0.3s; border: none; text-align: center; text-decoration: none; }
-        .btn-cart { background: #ffd814; color: #0f1111; }
-        .btn-cart:hover { background: #f7ca00; }
-        .btn-buy { background: #007185; color: #ffffff; }
-        .btn-buy:hover { background: #005f73; }
-
-        /* Responsive */
         @media (max-width: 1024px) {
-            .container { grid-template-columns: 1fr; gap: 40px; padding: 0 20px; }
+            .footer-container { grid-template-columns: 1fr; }
+            .footer-card { max-width: 500px; }
+        }
+        @media (max-width: 768px) {
+            .footer-nav-grid { grid-template-columns: 1fr 1fr; }
+             .container { grid-template-columns: 1fr; gap: 30px; }
+            .image-gallery { flex-direction: column-reverse; }
+            .thumbnails { flex-direction: row; overflow-x: auto; }
         }
     </style>
 </head>
 <body>
 
 <nav class="navbar">
-    <div style="display:flex; gap:20px; align-items:center;">
-        <a href="dashboard.php" class="logo">WALKON</a>
-        <a href="dashboard.php" class="back-btn" style="color:var(--primary);"><i class="fas fa-home"></i> Dashboard</a>
+    <a href="index.php" class="logo" style="display: flex; align-items: center; gap: 12px; text-decoration: none;">
+        <img src="assets/shoe_logo_green.png" alt="WalkOn Logo" style="height: 48px; width: auto;">
+            <div style="font-family: 'Outfit', sans-serif; font-size: 26px; font-weight: 700; line-height: 1;"><span style="color:#fff">WALK</span><span style="color:#10b981">ON</span></div>
+    </a>
+    <div>
+        <a href="index.php" style="text-decoration:none; color:var(--gray-900); font-weight:600;">Home</a>
+        <a href="shop.php" style="text-decoration:none; color:var(--gray-900); font-weight:600; margin-left: 20px;">Shop</a>
     </div>
-    <a href="my_listings.php" class="back-btn"><i class="fas fa-arrow-left"></i> Back to Products</a>
 </nav>
 
 <div class="container">
-    <!-- Left Column: Image Gallery -->
-    <div class="gallery-container">
-        <div class="thumbnails">
-            <?php foreach ($images as $index => $img_url): ?>
-                <img src="<?php echo htmlspecialchars($img_url); ?>" 
-                     class="thumb <?php echo $index === 0 ? 'active' : ''; ?>" 
-                     onclick="switchImage(this, '<?php echo htmlspecialchars($img_url); ?>')"
-                     alt="Thumbnail">
-            <?php endforeach; ?>
-        </div>
-        
-        <div class="main-image-view">
-            <img src="<?php echo htmlspecialchars($images[0]); ?>" class="main-image" id="mainImage" alt="Shoe Product">
-            <div class="share-btn"><i class="fas fa-share-alt"></i></div>
+    <div class="gallery-wrapper">
+        <div class="image-gallery">
+            <div class="thumbnails">
+                <?php foreach ($media as $idx => $m): ?>
+                    <img src="<?php echo htmlspecialchars($m['url']); ?>" class="thumb <?php echo $idx === 0 ? 'active' : ''; ?>" onclick="changeImage(this.src, this)">
+                <?php endforeach; ?>
+            </div>
+            <div class="main-img-wrap">
+                <img src="<?php echo htmlspecialchars($main_image); ?>" id="mainImage" class="main-img">
+            </div>
         </div>
     </div>
 
-    <!-- Right Column: Product Details -->
-    <div class="details-column">
-        <div>
-            <a href="#" class="brand-name">Brand: <?php echo htmlspecialchars($brand); ?></a>
-            <h1 class="product-title"><?php echo htmlspecialchars($product['product_name']); ?></h1>
+    <div class="product-info">
+        <?php if ($product['brand_name']): ?>
+            <span class="brand-badge"><?php echo htmlspecialchars($product['brand_name']); ?></span>
+        <?php endif; ?>
+        
+        <h1><?php echo htmlspecialchars($product['name']); ?></h1>
+        
+        <div class="price-area">
+            <span class="price">₹<?php echo number_format($product['price']); ?></span>
+            <?php if ($product['max_price']): ?>
+                <span class="old-price">₹<?php echo number_format($product['max_price']); ?></span>
+            <?php endif; ?>
+        </div>
+
+        <!-- SPECS BOX -->
+        <div class="specs-grid">
+            <div class="spec-item">
+                <span class="spec-label">Category</span>
+                <span class="spec-value"><?php echo htmlspecialchars($product['category_name']); ?></span>
+            </div>
             
-            <div class="rating-box">
-                <div class="stars">
-                    <?php for($i=1; $i<=5; $i++): ?>
-                        <i class="fas fa-star<?php echo $i > floor($rating) ? ($i - $rating < 1 ? '-half-alt' : '-o') : ''; ?>"></i>
-                    <?php endfor; ?>
-                </div>
-                <span class="reviews-count"><?php echo $reviews_count; ?> ratings</span>
+            <?php if ($product['sub_category_name']): ?>
+            <div class="spec-item">
+                <span class="spec-label">Sub Category</span>
+                <span class="spec-value"><?php echo htmlspecialchars($product['sub_category_name']); ?></span>
             </div>
+            <?php endif; ?>
+            <div class="spec-item">
+                <span class="spec-label">SKU</span>
+                <span class="spec-value"><?php echo htmlspecialchars($product['sku']); ?></span>
+            </div>
+            <?php if ($product['shoe_type']): ?>
+            <div class="spec-item">
+                <span class="spec-label">Type</span>
+                <span class="spec-value"><?php echo htmlspecialchars($product['shoe_type']); ?></span>
+            </div>
+            <?php endif; ?>
+
+
+            <?php if ($product['heel_height']): ?>
+            <div class="spec-item">
+                <span class="spec-label">Heel Height</span>
+                <span class="spec-value"><?php echo htmlspecialchars($product['heel_height']); ?></span>
+            </div>
+            <?php endif; ?>
+            <?php if ($product['outer_material']): ?>
+            <div class="spec-item">
+                <span class="spec-label">Material</span>
+                <span class="spec-value"><?php echo htmlspecialchars($product['outer_material']); ?></span>
+            </div>
+            <?php endif; ?>
+            <?php if ($product['season']): ?>
+            <div class="spec-item">
+                <span class="spec-label">Season</span>
+                <span class="spec-value"><?php echo htmlspecialchars($product['season']); ?></span>
+            </div>
+            <?php endif; ?>
+            <?php if ($product['gender']): ?>
+            <div class="spec-item">
+                <span class="spec-label">Gender</span>
+                <span class="spec-value"><?php echo htmlspecialchars($product['gender']); ?></span>
+            </div>
+            <?php endif; ?>
         </div>
 
-        <div class="price-section">
-            <div class="discount-row">
-                <span class="discount-pct">-<?php echo $discount; ?>%</span>
-                <span class="current-price"><small>₹</small><?php echo number_format($product['price']); ?></span>
-            </div>
-            <div class="mrp-row">
-                M.R.P.: <span>₹<?php echo number_format($mrp); ?></span>
-            </div>
-            <p class="tax-note">Inclusive of all taxes</p>
-        </div>
-
-        <div class="offers-section">
-            <h3 class="section-title"><i class="fas fa-percentage"></i> Offers</h3>
-            <div class="offers-grid">
-                <div class="offer-card">
-                    <h4>Cashback</h4>
-                    <p>Upto ₹28.00 cashback as Amazon Pay...</p>
-                    <a href="#" class="offer-link">1 offer ></a>
-                </div>
-                <div class="offer-card">
-                    <h4>Bank Offer</h4>
-                    <p>Upto ₹1,500.00 discount on select...</p>
-                    <a href="#" class="offer-link">30 offers ></a>
-                </div>
+        <?php if (!empty($colors)): ?>
+        <div class="selector-group">
+            <span class="selector-label">Available Colors</span>
+            <div style="display: flex;">
+                <?php foreach ($colors as $c): 
+                    $hex = 'gray';
+                    if(stripos($c, 'Black') !== false) $hex = '#000000';
+                    elseif(stripos($c, 'Navy') !== false) $hex = '#000080';
+                    elseif(stripos($c, 'Grey') !== false) $hex = '#808080';
+                    elseif(stripos($c, 'White') !== false) $hex = '#ffffff';
+                ?>
+                    <div class="color-dot" style="background-color: <?= $hex ?>;" title="<?= htmlspecialchars($c) ?>" onclick="selectColor(this)"></div>
+                <?php endforeach; ?>
             </div>
         </div>
+        <?php endif; ?>
 
-        <div class="trust-badges">
-            <div class="badge-item">
-                <div class="badge-icon"><i class="fas fa-undo"></i></div>
-                <span class="badge-text">10 days Return & Exchange</span>
-            </div>
-            <div class="badge-item">
-                <div class="badge-icon"><i class="fas fa-hand-holding-usd"></i></div>
-                <span class="badge-text">Pay on Delivery</span>
-            </div>
-            <div class="badge-item">
-                <div class="badge-icon"><i class="fas fa-shipping-fast"></i></div>
-                <span class="badge-text">Free Delivery</span>
-            </div>
-            <div class="badge-item">
-                <div class="badge-icon"><i class="fas fa-trophy"></i></div>
-                <span class="badge-text">Top Brand</span>
-            </div>
+        <?php if (!empty($sizes)): ?>
+        <div class="selector-group">
+            <span class="selector-label">Select Size</span>
+            <?php foreach ($sizes as $s): ?>
+                <span class="size-box" onclick="selectSize(this)"><?php echo htmlspecialchars($s); ?></span>
+            <?php endforeach; ?>
+        </div>
+        <?php endif; ?>
+
+        <div class="actions-group">
+            <button class="btn-cart" onclick="window.location.href='cart.php'">Add to Cart</button>
+            <button class="btn-buy" onclick="window.location.href='checkout.php'">Buy Now</button>
         </div>
 
-        <div class="selection-section">
-            <div class="selector">
-                <div class="selector-label">Colour: <span id="selectedColor">Dark Grey</span></div>
-                <div class="option-list">
-                    <div class="color-option active" onclick="selectOption(this, 'selectedColor', 'Dark Grey')">
-                        <img src="<?php echo htmlspecialchars($images[0]); ?>" alt="Grey">
-                        <span>₹<?php echo number_format($product['price']); ?></span>
-                    </div>
-                    <?php if (isset($images[1])): ?>
-                    <div class="color-option" onclick="selectOption(this, 'selectedColor', 'Navy Blue')">
-                        <img src="<?php echo htmlspecialchars($images[1]); ?>" alt="Blue">
-                        <span>₹<?php echo number_format($product['price'] * 0.9); ?></span>
-                    </div>
-                    <?php endif; ?>
-                </div>
-            </div>
-
-            <div class="selector">
-                <div class="selector-label">Size: <span id="selectedSize">7 UK</span></div>
-                <div class="option-list">
-                    <div class="size-option active" onclick="selectOption(this, 'selectedSize', '7 UK')">7 UK</div>
-                    <div class="size-option" onclick="selectOption(this, 'selectedSize', '8 UK')">8 UK</div>
-                    <div class="size-option" onclick="selectOption(this, 'selectedSize', '9 UK')">9 UK</div>
-                    <div class="size-option" onclick="selectOption(this, 'selectedSize', '10 UK')">10 UK</div>
-                </div>
-            </div>
-        </div>
-
-        <div class="btn-group">
-            <button class="btn btn-cart">Add to Cart</button>
-            <button class="btn btn-buy">Buy Now</button>
-        </div>
-
-        <div style="margin-top: 20px; border-top: 1px solid #eee; padding-top: 20px;">
-            <h3 style="font-size: 16px; margin-bottom: 10px;">About this item</h3>
-            <p style="font-size: 14px; line-height: 1.6; color: #565959;">
-                <?php echo nl2br(htmlspecialchars($product['description'])); ?>
-            </p>
+        <div class="about-section">
+            <h3>About this item</h3>
+            <p><?php echo nl2br(htmlspecialchars($product['description'])); ?></p>
         </div>
     </div>
 </div>
 
-<script>
-    function switchImage(thumb, url) {
-        document.getElementById('mainImage').src = url;
-        document.querySelectorAll('.thumb').forEach(t => t.classList.remove('active'));
-        thumb.classList.add('active');
-    }
+</div>
 
-    function selectOption(el, labelId, value) {
-        document.getElementById(labelId).innerText = value;
-        el.parentElement.querySelectorAll(el.tagName === 'DIV' ? '.active' : '.active').forEach(item => {
-            item.classList.remove('active');
-        });
+</body>
+</html>
+
+<script>
+    function changeImage(src, el) {
+        document.getElementById('mainImage').src = src;
+        document.querySelectorAll('.thumb').forEach(t => t.classList.remove('active'));
+        el.classList.add('active');
+    }
+    function selectSize(el) {
+        document.querySelectorAll('.size-box').forEach(s => s.classList.remove('active'));
+        el.classList.add('active');
+    }
+    function selectColor(el) {
+        document.querySelectorAll('.color-dot').forEach(c => c.classList.remove('active'));
         el.classList.add('active');
     }
 </script>

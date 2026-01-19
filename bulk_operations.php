@@ -31,73 +31,98 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['bulk_action'])) {
         $message = "No products selected.";
         $msg_type = "error";
     } else {
-        // Prepare placeholders for IN clause
         $placeholders = implode(',', array_fill(0, count($selected_ids), '?'));
-        
-        // Merge IDs with Seller ID for security
         $params = $selected_ids;
         $params[] = $seller_id; 
 
         try {
+            $pdo->beginTransaction();
+            $affected = 0;
+
             switch ($action) {
                 case 'delete':
-                    $sql = "DELETE FROM products WHERE id IN ($placeholders) AND seller_id = ?";
+                    // In a normalized schema, we delete from product_base
+                    // assuming constraints handle CASCADE for prices, stock, etc.
+                    $sql = "DELETE FROM product_base WHERE id IN ($placeholders) AND seller_id = ?";
                     $stmt = $pdo->prepare($sql);
                     $stmt->execute($params);
+                    $affected = $stmt->rowCount();
                     $message = "Selected products deleted successfully.";
                     $msg_type = "success";
                     break;
 
                 case 'status_active':
-                    $sql = "UPDATE products SET status = 'published' WHERE id IN ($placeholders) AND seller_id = ?";
+                    $sql = "UPDATE product_base SET status = 'published' WHERE id IN ($placeholders) AND seller_id = ?";
                     $stmt = $pdo->prepare($sql);
                     $stmt->execute($params);
+                    $affected = $stmt->rowCount();
                     $message = "Status updated to Published.";
                     $msg_type = "success";
                     break;
 
                 case 'status_draft':
-                    $sql = "UPDATE products SET status = 'draft' WHERE id IN ($placeholders) AND seller_id = ?";
+                    $sql = "UPDATE product_base SET status = 'draft' WHERE id IN ($placeholders) AND seller_id = ?";
                     $stmt = $pdo->prepare($sql);
                     $stmt->execute($params);
+                    $affected = $stmt->rowCount();
                     $message = "Status updated to Draft.";
                     $msg_type = "success";
                     break;
 
                 case 'price_percentage':
-                    // Increase/Decrease price by percentage
                     $percent = floatval($value);
                     $multiplier = 1 + ($percent / 100);
-                    $sql = "UPDATE products SET price = price * ? WHERE id IN ($placeholders) AND seller_id = ?";
-                    // We need to put the multiplier at the start of params array
+                    // Targeted at product_prices
+                    $sql = "UPDATE product_prices pp 
+                            JOIN product_base pb ON pp.product_id = pb.id 
+                            SET pp.price = pp.price * ? 
+                            WHERE pb.id IN ($placeholders) AND pb.seller_id = ?";
                     array_unshift($params, $multiplier); 
                     $stmt = $pdo->prepare($sql);
                     $stmt->execute($params);
+                    $affected = $stmt->rowCount();
                     $message = "Prices updated by $percent%.";
                     $msg_type = "success";
                     break;
                 
                 case 'set_price':
                     $new_price = floatval($value);
-                    $sql = "UPDATE products SET price = ? WHERE id IN ($placeholders) AND seller_id = ?";
+                    $sql = "UPDATE product_prices pp 
+                            JOIN product_base pb ON pp.product_id = pb.id 
+                            SET pp.price = ? 
+                            WHERE pb.id IN ($placeholders) AND pb.seller_id = ?";
                     array_unshift($params, $new_price);
                     $stmt = $pdo->prepare($sql);
                     $stmt->execute($params);
-                    $message = "Prices set to $$new_price.";
+                    $affected = $stmt->rowCount();
+                    $message = "Prices set to ₹" . number_format($new_price, 2);
                     $msg_type = "success";
                     break;
 
                 case 'set_stock':
                     $new_qty = intval($value);
-                    $sql = "UPDATE products SET quantity = ? WHERE id IN ($placeholders) AND seller_id = ?";
+                    $sql = "UPDATE product_stock ps 
+                            JOIN product_base pb ON ps.product_id = pb.id 
+                            SET ps.quantity = ? 
+                            WHERE pb.id IN ($placeholders) AND pb.seller_id = ?";
                     array_unshift($params, $new_qty);
                     $stmt = $pdo->prepare($sql);
                     $stmt->execute($params);
+                    $affected = $stmt->rowCount();
                     $message = "Stock quantity updated.";
                     $msg_type = "success";
                     break;
             }
+
+            // Log the operation
+            if ($affected > 0) {
+                $log_stmt = $pdo->prepare("INSERT INTO bulk_operations_log (seller_id, action_type, affected_count, action_value) VALUES (?, ?, ?, ?)");
+                $log_stmt->execute([$seller_id, $action, $affected, $value]);
+            }
+
+            $pdo->commit();
         } catch (PDOException $e) {
+            $pdo->rollBack();
             $message = "Error performing action: " . $e->getMessage();
             $msg_type = "error";
         }
@@ -105,9 +130,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['bulk_action'])) {
 }
 
 // ---------------------------------------------------------
-// FETCH PRODUCTS
+// 2. FETCH PRODUCTS (Normalized Schema)
 // ---------------------------------------------------------
-$stmt = $pdo->prepare("SELECT * FROM products WHERE seller_id = ? ORDER BY created_at DESC");
+$stmt = $pdo->prepare("
+    SELECT pb.id, pb.name as product_name, ps.sku, pp.price, pst.quantity, pb.status,
+           (SELECT url FROM product_media pm WHERE pm.product_id = pb.id AND is_primary = 1 LIMIT 1) as image_url
+    FROM product_base pb
+    LEFT JOIN product_prices pp ON pb.id = pp.product_id
+    LEFT JOIN product_skus ps ON pb.id = ps.product_id
+    LEFT JOIN product_stock pst ON pb.id = pst.product_id
+    WHERE pb.seller_id = ?
+    ORDER BY pb.created_at DESC
+");
 $stmt->execute([$seller_id]);
 $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
@@ -205,28 +239,7 @@ $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
                     </thead>
                     <tbody>
                         <?php foreach ($products as $p): 
-                             // Robust image selection
-                             $images_raw = $p['images'];
-                             $img = 'https://via.placeholder.com/40';
-
-                             if (!empty($images_raw)) {
-                                 $decoded = json_decode($images_raw, true);
-                                 $candidates = is_array($decoded) ? $decoded : [$images_raw];
-                                 
-                                 foreach ($candidates as $url) {
-                                     $is_local = (strpos($url, 'uploads/') === 0);
-                                     $is_http = (strpos($url, 'http') === 0);
-                                     
-                                     $path = parse_url($url, PHP_URL_PATH);
-                                     $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
-                                     $is_image_ext = in_array($ext, ['jpg', 'jpeg', 'png', 'webp', 'gif', 'svg']);
-                                     
-                                     if (($is_local && file_exists($url)) || ($is_http && $is_image_ext)) {
-                                         $img = $url;
-                                         break;
-                                     }
-                                 }
-                             }
+                             $img = $p['image_url'] ? $p['image_url'] : 'https://via.placeholder.com/40';
                         ?>
                         <tr>
                             <td class="check-col">
@@ -257,6 +270,40 @@ $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
             <?php endif; ?>
         </div>
     </form>
+
+    <!-- Recent Activity Section -->
+    <?php
+    $log_stmt = $pdo->prepare("SELECT * FROM bulk_operations_log WHERE seller_id = ? ORDER BY created_at DESC LIMIT 10");
+    $log_stmt->execute([$seller_id]);
+    $logs = $log_stmt->fetchAll(PDO::FETCH_ASSOC);
+    ?>
+    <div class="card" style="margin-top: 40px;">
+        <h3 style="margin-bottom: 20px;"><i class="fas fa-history"></i> Recent Activity</h3>
+        <?php if (count($logs) > 0): ?>
+            <table style="font-size: 14px;">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Action</th>
+                        <th>Affected</th>
+                        <th>Value</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($logs as $log): ?>
+                        <tr>
+                            <td><?php echo date('M d, H:i', strtotime($log['created_at'])); ?></td>
+                            <td><span style="text-transform: capitalize;"><?php echo str_replace('_', ' ', $log['action_type']); ?></span></td>
+                            <td><?php echo $log['affected_count']; ?> items</td>
+                            <td><?php echo $log['action_value'] ? htmlspecialchars($log['action_value']) : '-'; ?></td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        <?php else: ?>
+            <p style="color:#888; text-align:center;">No recent activity found.</p>
+        <?php endif; ?>
+    </div>
 </div>
 
 <script>

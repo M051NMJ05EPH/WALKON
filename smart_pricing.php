@@ -19,28 +19,8 @@ $seller_id = $seller ? $seller['id'] : -1;
 $message = "";
 
 // ---------------------------------------------------------
-// 1. AUTO-MIGRATION: Ensure columns exist
+// 1. DATABASE COLUMNS: Handled by add_smart_pricing.sql
 // ---------------------------------------------------------
-try {
-    // Check if columns exist; if not, add them.
-    // This is a quick way to ensure the DB is ready without a separate setup script.
-    $check = $pdo->query("SHOW COLUMNS FROM products LIKE 'min_price'");
-    if ($check->rowCount() == 0) {
-        $pdo->exec("ALTER TABLE products ADD COLUMN min_price DECIMAL(10,2) DEFAULT NULL");
-    }
-    
-    $check = $pdo->query("SHOW COLUMNS FROM products LIKE 'max_price'");
-    if ($check->rowCount() == 0) {
-        $pdo->exec("ALTER TABLE products ADD COLUMN max_price DECIMAL(10,2) DEFAULT NULL");
-    }
-
-    $check = $pdo->query("SHOW COLUMNS FROM products LIKE 'smart_pricing_status'");
-    if ($check->rowCount() == 0) {
-        $pdo->exec("ALTER TABLE products ADD COLUMN smart_pricing_status TINYINT(1) DEFAULT 0");
-    }
-} catch (PDOException $e) {
-    // Ignore error if columns exist or table locked, but log in real app
-}
 
 // ---------------------------------------------------------
 // 2. HANDLE UPDATES
@@ -52,20 +32,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $max = !empty($_POST['max_price']) ? $_POST['max_price'] : NULL;
         $status = isset($_POST['enabled']) ? 1 : 0;
         
-        // Simple security check: make sure product belongs to user
-        $stmt = $pdo->prepare("UPDATE products SET min_price = ?, max_price = ?, smart_pricing_status = ? WHERE id = ? AND seller_id = ?");
-        if ($stmt->execute([$min, $max, $status, $p_id, $seller_id])) {
-            $message = "Pricing rules updated successfully!";
+        // Simple security check: make sure product belongs to user (via product_base join technically, but here we assume id is valid if fetched. 
+        // For robustness, check if product_id is owned by seller first, but for now just update product_prices linked to this product)
+        
+        $stmt_check = $pdo->prepare("SELECT id FROM product_base WHERE id = ? AND seller_id = ?");
+        $stmt_check->execute([$p_id, $seller_id]);
+        if ($stmt_check->fetch()) {
+             $stmt = $pdo->prepare("UPDATE product_prices SET min_price = ?, max_price = ?, smart_pricing_status = ? WHERE product_id = ?");
+             if ($stmt->execute([$min, $max, $status, $p_id])) {
+                 $message = "Pricing rules updated successfully!";
+             } else {
+                 $message = "Error updating pricing.";
+             }
         } else {
-            $message = "Error updating pricing.";
+            $message = "Unauthorized product access.";
         }
     }
 }
 
 // ---------------------------------------------------------
-// 3. FETCH PRODUCTS
+// 3. FETCH PRODUCTS (Normalized Schema)
 // ---------------------------------------------------------
-$stmt = $pdo->prepare("SELECT * FROM products WHERE seller_id = ? ORDER BY created_at DESC");
+$stmt = $pdo->prepare("
+    SELECT pb.id, pb.name as product_name, ps.sku, pp.price, 
+           pp.min_price, pp.max_price, pp.smart_pricing_status,
+           (SELECT url FROM product_media pm WHERE pm.product_id = pb.id AND is_primary = 1 LIMIT 1) as image_url
+    FROM product_base pb
+    JOIN product_prices pp ON pb.id = pp.product_id
+    JOIN product_skus ps ON pb.id = ps.product_id
+    WHERE pb.seller_id = ?
+    ORDER BY pb.created_at DESC
+");
 $stmt->execute([$seller_id]);
 $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
@@ -151,28 +148,7 @@ $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 </thead>
                 <tbody>
                     <?php foreach ($products as $p): 
-                        // Robust image selection
-                        $images_raw = $p['images'];
-                        $img = 'https://via.placeholder.com/50';
-
-                        if (!empty($images_raw)) {
-                            $decoded = json_decode($images_raw, true);
-                            $candidates = is_array($decoded) ? $decoded : [$images_raw];
-                            
-                            foreach ($candidates as $url) {
-                                $is_local = (strpos($url, 'uploads/') === 0);
-                                $is_http = (strpos($url, 'http') === 0);
-                                
-                                $path = parse_url($url, PHP_URL_PATH);
-                                $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
-                                $is_image_ext = in_array($ext, ['jpg', 'jpeg', 'png', 'webp', 'gif', 'svg']);
-                                
-                                if (($is_local && file_exists($url)) || ($is_http && $is_image_ext)) {
-                                    $img = $url;
-                                    break;
-                                }
-                            }
-                        }
+                        $img = $p['image_url'] ? $p['image_url'] : 'https://via.placeholder.com/50';
                     ?>
                     <tr>
                         <td>
@@ -184,7 +160,7 @@ $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                 </div>
                             </div>
                         </td>
-                        <td>₹<?php echo number_format($p['price'], 2); ?></td>
+                        <td>₹<?php echo number_format((float)$p['price'], 2); ?></td>
                         
                         <!-- Form for each row -->
                         <form method="POST">
@@ -215,6 +191,53 @@ $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
             <div style="text-align:center; padding:40px; color:#888;">
                 No products found. <a href="add_listing.php">Add a product first</a>.
             </div>
+        <?php endif; ?>
+    </div>
+
+    <!-- Recent Activity Section -->
+    <?php
+    $log_stmt = $pdo->prepare("SELECT sl.*, pb.name 
+                              FROM smart_pricing_log sl 
+                              JOIN product_base pb ON sl.product_id = pb.id 
+                              WHERE sl.seller_id = ? 
+                              ORDER BY sl.created_at DESC LIMIT 10");
+    $log_stmt->execute([$seller_id]);
+    $logs = $log_stmt->fetchAll(PDO::FETCH_ASSOC);
+    ?>
+    <div class="card" style="margin-top: 40px; background:white; padding:30px; border-radius:15px; box-shadow:0 10px 30px rgba(0,0,0,0.05);">
+        <h3 style="margin-bottom: 20px;"><i class="fas fa-history"></i> Recent Price Adjustments</h3>
+        <?php if (count($logs) > 0): ?>
+            <table style="width:100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="text-align: left; border-bottom: 2px solid #eee;">
+                        <th style="padding:15px 0;">Time</th>
+                        <th style="padding:15px 0;">Product</th>
+                        <th style="padding:15px 0;">Old Price</th>
+                        <th style="padding:15px 0;">New Price</th>
+                        <th style="padding:15px 0; text-align:right;">Change</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($logs as $log): 
+                        $diff = $log['new_price'] - $log['old_price'];
+                        $color = $diff >= 0 ? '#28a745' : '#dc3545';
+                        $icon = $diff >= 0 ? 'fa-arrow-up' : 'fa-arrow-down';
+                    ?>
+                        <tr style="border-bottom: 1px solid #f9f9f9;">
+                            <td style="padding:15px 0; font-size:14px; color:#666;"><?php echo date('H:i:s', strtotime($log['created_at'])); ?></td>
+                            <td style="padding:15px 0; font-weight:600;"><?php echo htmlspecialchars($log['name']); ?></td>
+                            <td style="padding:15px 0; color:#888;">₹<?php echo number_format($log['old_price'], 2); ?></td>
+                            <td style="padding:15px 0; font-weight:700; color:var(--primary);">₹<?php echo number_format($log['new_price'], 2); ?></td>
+                            <td style="padding:15px 0; text-align:right; color:<?php echo $color; ?>; font-weight:600;">
+                                <i class="fas <?php echo $icon; ?>" style="font-size:12px;"></i>
+                                ₹<?php echo number_format(abs($diff), 2); ?>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        <?php else: ?>
+            <p style="color:#888; text-align:center; padding:20px;">No recent adjustments found. Click "Run Engine" to start.</p>
         <?php endif; ?>
     </div>
 </div>

@@ -28,8 +28,8 @@ try {
     
     $seller_id = $seller['id'];
 
-    // 2. Verify that the product belongs to this seller
-    $stmt_check = $pdo->prepare("SELECT id FROM products WHERE id = ? AND seller_id = ?");
+    // 2. Verify that the product belongs to this seller (checking product_base)
+    $stmt_check = $pdo->prepare("SELECT id FROM product_base WHERE id = ? AND seller_id = ?");
     $stmt_check->execute([$product_id, $seller_id]);
     $product = $stmt_check->fetch();
 
@@ -38,7 +38,8 @@ try {
     }
 
     // 3. Delete the product
-    $stmt_delete = $pdo->prepare("DELETE FROM products WHERE id = ?");
+    // Because of ON DELETE CASCADE in ultra_normalize.sql, this deletes from all child tables (skus, prices, stock, media, etc.) automatically.
+    $stmt_delete = $pdo->prepare("DELETE FROM product_base WHERE id = ?");
     $stmt_delete->execute([$product_id]);
 
     header("Location: my_listings.php?msg=Product removed successfully");

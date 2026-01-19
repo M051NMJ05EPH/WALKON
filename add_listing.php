@@ -8,6 +8,26 @@ if (!isset($_SESSION['user_id'])) {
     exit();
 }
 
+    // Fetch seller information for the current user
+    $stmt_seller = $pdo->prepare("SELECT s.id FROM sellers s JOIN users u ON s.email = u.email WHERE u.id = ?");
+    $stmt_seller->execute([$_SESSION['user_id']]);
+    $seller = $stmt_seller->fetch();
+    
+    $seller_id = $seller ? $seller['id'] : -1;
+    $seller_ref_id = $seller_id; // For consistency in insert
+
+    // Fetch Categories for Dropdown
+    $cat_stmt = $pdo->query("SELECT * FROM categories ORDER BY name ASC");
+    $db_categories = $cat_stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // Fetch Subcategories for Dropdown (grouped by category_id for JS)
+    $sub_stmt = $pdo->query("SELECT * FROM sub_categories ORDER BY name ASC");
+    $db_subcategories = $sub_stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // Fetch Materials
+    $mat_stmt = $pdo->query("SELECT * FROM materials ORDER BY name ASC");
+    $materials = $mat_stmt->fetchAll(PDO::FETCH_ASSOC);
+
 $user_id = $_SESSION['user_id'];
 $success_msg = "";
 $error_msg = "";
@@ -70,8 +90,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error_msg = "Please fill in all required fields (Name, SKU, Price).";
     } else {
         try {
-            // Check for duplicate SKU
-            $stmt = $pdo->prepare("SELECT id FROM products WHERE sku = ?");
+            // Check for duplicate SKU in normalized schema
+            $stmt = $pdo->prepare("SELECT id FROM product_skus WHERE sku = ?");
             $stmt->execute([$sku]);
             if ($stmt->fetch()) {
                 $error_msg = "SKU already exists. Please use a unique SKU.";
@@ -105,18 +125,91 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
                 }
 
-                // Insert Product
-                $sql = "INSERT INTO products (seller_id, product_name, sku, price, description, category, subcategory, sizes, colors, quantity, channels, images, status, created_at) 
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'published', NOW())";
-                $insert = $pdo->prepare($sql);
-                $insert->execute([$seller_ref_id, $product_name, $sku, $price, $description, $category, $subcategory, $sizes, $colors, $quantity, $channels_str, $images_json]);
-                $success_msg = "Listing created successfully and synced to selected channels!";
+                // Insert into Product Base
+                // Now expecting IDs directly from the form
+                $sql_base = "INSERT INTO product_base (seller_id, name, category_id, sub_category_id, status, created_at) 
+                             VALUES (?, ?, ?, ?, 'published', NOW())";
+                $stmt_base = $pdo->prepare($sql_base);
+                $stmt_base->execute([$seller_ref_id, $product_name, $category, $subcategory]);
+                $new_product_id = $pdo->lastInsertId();
+
+                // Insert SKU
+                $pdo->prepare("INSERT INTO product_skus (product_id, sku) VALUES (?, ?)")
+                    ->execute([$new_product_id, $sku]);
+
+                // Insert Price
+                $pdo->prepare("INSERT INTO product_prices (product_id, price) VALUES (?, ?)")
+                    ->execute([$new_product_id, $price]);
+
+                // Insert Stock
+                $pdo->prepare("INSERT INTO product_stock (product_id, quantity) VALUES (?, ?)")
+                    ->execute([$new_product_id, $quantity]);
+
+                // Insert Description
+                if ($description) {
+                    $pdo->prepare("INSERT INTO product_descriptions (product_id, content) VALUES (?, ?)")
+                        ->execute([$new_product_id, $description]);
+                }
+
+                // Insert Sizes
+                if ($sizes) {
+                    $size_arr = explode(',', $sizes);
+                    $stmt_sz = $pdo->prepare("INSERT INTO product_sizes (product_id, size) VALUES (?, ?)");
+                    foreach ($size_arr as $sz) {
+                        $stmt_sz->execute([$new_product_id, trim($sz)]);
+                    }
+                }
+
+                // Insert Colors
+                if ($colors) {
+                    $color_arr = explode(',', $colors);
+                    $stmt_cl = $pdo->prepare("INSERT INTO product_colors (product_id, color) VALUES (?, ?)");
+                    foreach ($color_arr as $cl) {
+                        $stmt_cl->execute([$new_product_id, trim($cl)]);
+                    }
+                }
+
+                // Insert Media
+                if (!empty($image_urls)) {
+                    $stmt_media = $pdo->prepare("INSERT INTO product_media (product_id, url, is_primary) VALUES (?, ?, ?)");
+                    foreach ($image_urls as $idx => $url) {
+                        $is_primary = ($idx === 0) ? 1 : 0;
+                        $stmt_media->execute([$new_product_id, $url, $is_primary]);
+                    }
+                }
+                
+                // Insert Channels
+                if (!empty($channels_arr)) {
+                    $stmt_chan = $pdo->prepare("INSERT INTO product_channels (product_id, channel_name) VALUES (?, ?)");
+                    foreach ($channels_arr as $chan) {
+                        $stmt_chan->execute([$new_product_id, $chan]);
+                    }
+                }
+
+                // Insert Product Specs (New)
+                $brand_id = !empty($_POST['brand_id']) ? $_POST['brand_id'] : null;
+                $heel_height = $_POST['heel_height'] ?? '';
+                $outer_material = $_POST['outer_material'] ?? '';
+                $season = $_POST['season'] ?? '';
+                $shoe_type = $_POST['shoe_type'] ?? '';
+                $gender = $_POST['gender'] ?? '';
+                $occasion = $_POST['occasion'] ?? '';
+
+                $stmt_specs = $pdo->prepare("INSERT INTO product_specs (product_id, brand_id, gender, heel_height, outer_material, season, shoe_type, occasion) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+                $stmt_specs->execute([$new_product_id, $brand_id, $gender, $heel_height, $outer_material, $season, $shoe_type, $occasion]);
+                
+                $success_msg = "Product listed successfully!";
+
             }
-        } catch (Exception $e) {
-            $error_msg = "Error creating listing: " . $e->getMessage();
+        } catch (PDOException $e) {
+            $error_msg = "Database Error: " . $e->getMessage();
         }
     }
 }
+
+// Fetch Brands
+$brands_stmt = $pdo->query("SELECT * FROM brands ORDER BY name ASC");
+$brands = $brands_stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
 
 <!DOCTYPE html>
@@ -125,21 +218,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Add New Listing - WALKON</title>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
-            --primary: #28a745;
-            --primary-dark: #218838;
-            --text-dark: #333;
-            --text-light: #6c757d;
-            --bg-light: #f8f9fa;
+            --primary: #10b981;
+            --primary-dark: #059669;
+            --text-dark: #0f172a;
+            --text-light: #64748b;
+            --bg-light: #f8fafc;
             --white: #ffffff;
-            --border: #e9ecef;
+            --border: #e2e8f0;
         }
         
         * { margin:0; padding:0; box-sizing:border-box; font-family:'Poppins', sans-serif; }
-        body { background: var(--bg-light); color: var(--text-dark); padding-bottom: 50px; }
+        body { background: var(--bg-light); color: var(--text-dark); padding: 0; display: flex; flex-direction: column; min-height: 100vh; }
+        .container { flex: 1; width: 100%; max-width: 1200px; margin: 0 auto; padding: 40px 20px; }
 
         .container {
             max-width: 900px;
@@ -326,12 +420,91 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         .alert-error { background: #f8d7da; color: #721c24; }
         
         .nav-back { display: inline-block; margin-top: 20px; color: var(--text-light); text-decoration: none; }
+        /* Footer Refined */
+        footer {
+          background: #05070A; border-top: 1px solid var(--border);
+          padding: 80px 0 40px; color: #fff;
+          margin-top: 50px;
+          text-align: left;
+           width: 100%;
+        }
+        .footer-container {
+            max-width: 1400px; margin: 0 auto; padding: 0 2rem;
+            display: grid; grid-template-columns: 1.2fr 2fr; gap: 4rem;
+        }
+        
+        /* Footer Card */
+        .footer-card {
+            background: #0f131f; /* Darker card background */
+            border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 24px; padding: 3rem;
+            display: flex; flex-direction: column; gap: 1.5rem;
+        }
+        .footer-logo {
+            display: flex; align-items: center; gap: 10px; text-decoration: none;
+        }
+        .brand-text {
+            font-family: 'Playfair Display', serif; font-size: 24px; font-weight: 700; line-height: 1;
+        }
+        .footer-desc {
+            color: #94a3b8; font-size: 0.95rem; line-height: 1.6; margin-bottom: 0.5rem;
+        }
+        
+        .contact-info { display: flex; flex-direction: column; gap: 0.8rem; }
+        .contact-item {
+            display: flex; align-items: center; gap: 10px;
+            color: #fff; font-size: 0.9rem;
+        }
+        .contact-item i { color: #10b981; width: 20px; }
+        
+        .social-links {
+            display: flex; gap: 1rem; margin-top: 1rem;
+        }
+        .social-btn {
+            width: 40px; height: 40px; border-radius: 10px;
+            background: rgba(255,255,255,0.05);
+            display: flex; align-items: center; justify-content: center;
+            color: #94a3b8; text-decoration: none; transition: 0.3s;
+        }
+        .social-btn:hover {
+            background: #10b981; color: #000; transform: translateY(-3px);
+        }
+        
+        /* Footer Grid */
+        .footer-nav-grid {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 2rem;
+        }
+        
+        .footer-col h4 {
+            color: #10b981; font-size: 0.85rem; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 1px; margin-bottom: 1.5rem;
+        }
+        
+        .footer-links { list-style: none; padding: 0; margin: 0; }
+        .footer-links li { margin-bottom: 1rem; }
+        .footer-links a {
+            color: #e2e8f0; text-decoration: none; font-size: 0.95rem;
+            transition: 0.3s;
+        }
+        .footer-links a:hover { color: #10b981; padding-left: 5px; }
+
+        @media (max-width: 1024px) {
+            .footer-container { grid-template-columns: 1fr; }
+            .footer-card { max-width: 500px; }
+        }
+        @media (max-width: 768px) {
+            .footer-nav-grid { grid-template-columns: 1fr 1fr; }
+        }
     </style>
 </head>
 <body>
 
 <div class="container">
     <div class="header">
+        <div style="display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 15px;">
+            <img src="assets/shoe_logo_green.png" alt="WalkOn" style="height: 48px; width: auto;">
+            <span style="font-family: 'Playfair Display', serif; font-size: 32px; font-weight: 700; color: var(--text-dark); letter-spacing: 0;">WALK<span style="color:var(--primary)">ON</span></span>
+        </div>
         <h1>New Listing</h1>
         <p>Create a listing once, sell everywhere.</p>
     </div>
@@ -369,26 +542,109 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <div class="row">
                 <div class="form-group col-md-6">
                     <label class="form-label">Category</label>
-                    <select class="form-control" name="category">
+                    <select class="form-control" name="category" id="categorySelect" required onchange="filterSubcategories()">
                         <option value="">Select Category</option>
-                        <option value="Sneakers">Sneakers</option>
-                        <option value="Boots">Boots</option>
-                        <option value="Sandals">Sandals</option>
-                        <option value="Formal">Formal</option>
-                        <option value="Sports">Sports</option>
+                        <?php foreach ($db_categories as $cat): ?>
+                            <option value="<?php echo $cat['id']; ?>"><?php echo htmlspecialchars($cat['name']); ?></option>
+                        <?php endforeach; ?>
                     </select>
                 </div>
                 <div class="form-group col-md-6">
-                    <label class="form-label">Subcategory</label>
-                    <select class="form-control" name="subcategory">
-                        <option value="">(none)</option>
+                    <label for="sub_category">Sub Category</label>
+                    <select class="form-control" name="subcategory" id="subcategorySelect" required>
+                        <option value="">Select Subcategory</option>
+                        <?php foreach ($db_subcategories as $sub): ?>
+                            <option value="<?php echo $sub['id']; ?>">
+                                <?php echo htmlspecialchars($sub['name']); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+            </div>
+
+            <!-- New Product Specs Section -->
+            <h4 style="margin:20px 0 15px; color:#475569;">Specifications</h4>
+            <div class="row">
+                <div class="form-group col-md-4">
+                    <label class="form-label">Brand</label>
+                    <select class="form-control" name="brand_id">
+                        <option value="">Select Brand</option>
+                        <?php foreach ($brands as $b): ?>
+                            <option value="<?php echo $b['id']; ?>"><?php echo htmlspecialchars($b['name']); ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+
+                <div class="form-group col-md-4">
+                    <label class="form-label">Shoe Type</label>
+                    <select class="form-control" name="shoe_type">
+                        <option value="">Select Type</option>
+                        <option value="Sneakers">Sneakers</option>
+                        <option value="Boots">Boots</option>
+                        <option value="Loafers">Loafers</option>
+                        <option value="Sandals">Sandals</option>
+                        <option value="Heels">Heels</option>
+                    </select>
+                </div>
+
+                <div class="form-group col-md-4">
+                    <label class="form-label">Gender</label>
+                    <select class="form-control" name="gender" required>
+                        <option value="">Select Gender</option>
                         <option value="Men">Men</option>
                         <option value="Women">Women</option>
+                        <option value="Boys">Boys</option>
+                        <option value="Girls">Girls</option>
                         <option value="Kids">Kids</option>
+                        <option value="Babies">Babies</option>
                         <option value="Unisex">Unisex</option>
                     </select>
                 </div>
             </div>
+            
+            <div class="row">
+                <div class="form-group col-md-4">
+                    <label class="form-label">Outer Material</label>
+                    <select class="form-control" name="outer_material">
+                        <option value="">Select Material</option>
+                        <?php foreach ($materials as $m): ?>
+                            <option value="<?php echo htmlspecialchars($m['name']); ?>"><?php echo htmlspecialchars($m['name']); ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="form-group col-md-4">
+                    <label class="form-label">Heel Height</label>
+                    <input type="text" class="form-control" name="heel_height" placeholder="e.g. Flat, 2 inches">
+                </div>
+                <div class="form-group col-md-4">
+                    <label class="form-label">Season</label>
+                    <select class="form-control" name="season">
+                        <option value="">Select Season</option>
+                        <option value="All Season">All Season</option>
+                        <option value="Summer">Summer</option>
+                        <option value="Winter">Winter</option>
+                    </select>
+                </div>
+            </div>
+
+            <script>
+            function filterSubcategories() {
+                const catId = document.getElementById('categorySelect').value;
+                const subSelect = document.getElementById('subcategorySelect');
+                const options = subSelect.querySelectorAll('option[data-category]');
+                
+                // Reset selection
+                subSelect.value = "";
+                
+                options.forEach(opt => {
+                    if (!catId || opt.getAttribute('data-category') == catId) {
+                        opt.style.display = 'block';
+                    } else {
+                        opt.style.display = 'none';
+                    }
+                });
+            }
+            </script>
 
             <div class="btn-group" style="justify-content: flex-end;">
                 <a href="my_listings.php" class="btn btn-secondary" style="margin-right:10px; text-decoration:none;">Cancel</a>
@@ -480,7 +736,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <span>Instagram</span>
                 </label>
                 <label class="channel-card" onclick="toggleChannel(this)">
-                    <input type="checkbox" name="channels[]" value="TikTok" class="channel-checkbox">
+                    <input type="checkbox" name="channels[]" value="TikTok Shop" class="channel-checkbox">
                     <i class="fab fa-tiktok"></i>
                     <span>TikTok Shop</span>
                 </label>
@@ -586,5 +842,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 </script>
 
+</div>
+
+</body>
+</html>
 </body>
 </html>

@@ -109,34 +109,13 @@
 
   <div class="card">
     <!-- Premium WALKON SVG Logo -->
-    <a href="index.php" aria-label="WALKON Home">
-      <svg class="logo-svg" viewBox="0 0 220 70" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-        <defs>
-          <linearGradient id="walkon-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stop-color="#16a34a"/>
-            <stop offset="100%" stop-color="#22c55e"/>
-          </linearGradient>
-          <filter id="shadow">
-            <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="#000000" flood-opacity="0.15"/>
-          </filter>
-        </defs>
-
-        <g transform="translate(20,35)" filter="url(#shadow)">
-          <path d="M25 0 Q0 -30, 25 -50 Q50 -30, 25 0 Q0 30, 25 35 Q50 30, 25 0 Z" 
-                fill="url(#walkon-gradient)" opacity="0.98"/>
-          <path d="M25 0 L25 -50" stroke="#15803d" stroke-width="8" stroke-linecap="round"/>
-          <path d="M25 -35 Q45 -25, 62 -20" stroke="#15803d" stroke-width="6" stroke-linecap="round" opacity="0.9"/>
-          <path d="M25 -35 Q5 -25, -12 -20" stroke="#15803d" stroke-width="6" stroke-linecap="round" opacity="0.9"/>
-          <ellipse cx="25" cy="32" rx="18" ry="10" fill="#15803d"/>
-        </g>
-
-        <g transform="translate(90,45)">
-          <text font-family="Inter, system-ui, sans-serif" font-size="42" font-weight="900" 
-                letter-spacing="1.5" fill="#1e293b">WALK</text>
-          <text x="78" font-family="Inter, system-ui, sans-serif" font-size="42" font-weight="900" 
-                letter-spacing="1.5" fill="url(#walkon-gradient)">ON</text>
-        </g>
+    <a href="index.php" aria-label="WALKON Home" style="display: flex; align-items: center; justify-content: center; gap: 15px; text-decoration: none; margin-bottom: 1.8rem;">
+      <svg width="60" height="60" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M2 17C2 17 2 19 4 19H20C22 19 22 17 22 17V15L18 10H14L10 12L5 14L2 17Z" fill="#10b981"/>
+          <path d="M14 10L12 7H9L7 9" stroke="#10b981" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M11 11.5L12 13.5M14 10.5L15 12.5M17 9.5L18 11.5" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
       </svg>
+      <span style="font-size: 42px; font-weight: 900; color: #1e293b; letter-spacing: 1.5px;">WALKON</span>
     </a>
 
     <h2>Reset Your Password</h2>

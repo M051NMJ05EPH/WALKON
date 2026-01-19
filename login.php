@@ -16,9 +16,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $user = $stmt->fetch();
 
         if ($user) {
-            if ($user['is_verified'] == 0) {
-                $error = "Please verify your email first!";
-            } elseif (password_verify($password, $user['password'])) {
+            if (password_verify($password, $user['password'])) {
                 $_SESSION['user_id'] = $user['id'];
                 $_SESSION['email'] = $user['email'];
                 $_SESSION['first_name'] = $user['first_name'];
@@ -41,7 +39,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - WALKON Shoes</title>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         * { margin:0; padding:0; box-sizing:border-box; font-family:'Poppins',sans-serif; }
@@ -82,17 +80,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             object-fit: cover;
             z-index: 0;
         }
-        /* Dark Gradient Overlay */
-        .left-image::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(to bottom, rgba(0,0,0,0.3), rgba(0,0,0,0.8));
-            z-index: 1;
-        }
+        /* Overlay removed to show original image */
         .left-image h2 {
             font-size: 36px;
             font-weight: 700;
@@ -100,8 +88,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             max-width: 80%;
             z-index: 2;
             position: relative;
-            color: white;
-            text-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            text-shadow: 0 2px 10px rgba(0,0,0,0.5); /* Added subtle text shadow for readability */
         }
         .right-form {
             flex: 1;
@@ -218,24 +205,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         .social-btn {
             flex: 1;
-            padding: 16px;
-            background: #334155;
+            padding: 14px 24px;
+            background: #1a1a1b;
             color: white;
-            border: none;
-            border-radius: 16px;
-            font-size: 16px;
+            border: 1px solid #333;
+            border-radius: 50px;
+            font-size: 15px;
             font-weight: 500;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 12px;
-            transition: 0.3s;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             text-decoration: none;
         }
         .social-btn:hover {
-            background: #475569;
+            background: #2d2d2e;
             transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.4);
+            border-color: #444;
+        }
+        .social-btn img {
+            width: 22px;
+            height: 22px;
         }
         
         .links {
@@ -313,19 +306,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <div class="container">
         <div class="login-wrapper">
             <!-- Left Side -->
-            <div class="left-image">
-                <!-- Video Background -->
-                <video autoplay muted loop playsinline poster="https://images.unsplash.com/photo-1606107557195-0e29a4b5b4aa?ixlib=rb-4.0.3&auto=format&fit=crop&w=928&q=80">
-                    <source src="https://videos.pexels.com/video-files/3209267/3209267-hd_1920_1080_25fps.mp4" type="video/mp4">
-                    Your browser does not support the video tag.
-                </video>
+            <div class="left-image" style="background: url('assets/login_premium.png') center/cover no-repeat;">
                 <h2>Capturing Steps,<br>Creating Success</h2>
             </div>
 
             <!-- Right Side -->
             <div class="right-form">
-                <div class="logo">
-                    <h1>WALKON</h1>
+                <div class="logo" style="display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 30px;">
+                    <img src="assets/shoe_logo_green.png" alt="WalkOn Logo" style="height: 50px; width: auto;">
+                    <div style="font-family: 'Outfit', sans-serif; font-size: 32px; font-weight: 800; line-height: 1; text-transform: uppercase; letter-spacing: -1px;">
+                        <span style="color: #fff;">WALK</span><span style="color: #10b981;">ON</span>
+                    </div>
                 </div>
 
                 <div class="welcome-text">
@@ -364,12 +355,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <div class="divider"><span>Or sign in with</span></div>
 
                 <div class="social-buttons">
-                   <a href="google-login.php" class="social-btn google" style="background:white; color:#555; border:1px solid #ddd;">
-                        <img src="google_logo.png" width="20" alt="Google">
+                   <a href="google-login.php" class="social-btn google">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 48 48">
+                            <path fill="#ea4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+                            <path fill="#4285f4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+                            <path fill="#fbbc05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24s.92 7.54 2.56 10.78l7.97-6.19z"/>
+                            <path fill="#34a853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+                            <path fill="none" d="M0 0h48v48H0z"/>
+                        </svg>
                         Sign in with Google
                     </a>
-                    <a href="#" class="social-btn" style="background-color: #000000; color: white; border: 1px solid #000000;">
-                        <i class="fab fa-apple" style="font-size:20px;"></i>
+                    <a href="#" class="social-btn" style="background-color: #000000; color: white; border: 1px solid #333;">
+                        <i class="fab fa-apple" style="font-size:22px;"></i>
                         Apple
                     </a>
                 </div>

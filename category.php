@@ -23,7 +23,7 @@
             Sneakers
           </h3>
           <p style="color:#64748b;font-size:1rem;">
-            Nike, Adidas, Puma<br>Casual, Lifestyle, High-Top, Low-Top
+            Nike, Adidas, Puma
           </p>
         </div>
       </div>
@@ -41,7 +41,7 @@
             Running Shoes
           </h3>
           <p style="color:#64748b;font-size:1rem;">
-            Adidas, Nike, Hoka<br>Trail, Road, Racing, Training
+            Adidas, Nike, Hoka
           </p>
         </div>
       </div>
@@ -59,7 +59,7 @@
             Boots
           </h3>
           <p style="color:#64748b;font-size:1rem;">
-            Timberland, Dr. Martens<br>Ankle, Chelsea, Combat, Hiking
+            Timberland, Dr. Martens
           </p>
         </div>
       </div>
@@ -77,7 +77,7 @@
             Sandals & Slides
           </h3>
           <p style="color:#64748b;font-size:1rem;">
-            Birkenstock, Teva, Crocs<br>Flip-Flops, Sliders, Sport Sandals
+            Birkenstock, Teva, Crocs
           </p>
         </div>
       </div>
@@ -102,7 +102,7 @@
             Sneakers
           </h3>
           <p style="color:#64748b;font-size:1rem;">
-            Nike, New Balance, Converse<br>Casual, Platform, Retro
+            Nike, New Balance, Converse
           </p>
         </div>
       </div>
@@ -120,7 +120,7 @@
             Boots
           </h3>
           <p style="color:#64748b;font-size:1rem;">
-            UGG, Steve Madden, Dr. Martens<br>Knee-High, Ankle, Heeled
+            UGG, Steve Madden, Dr. Martens
           </p>
         </div>
       </div>
@@ -138,7 +138,7 @@
             Heels & Pumps
           </h3>
           <p style="color:#64748b;font-size:1rem;">
-            Christian Louboutin, Jimmy Choo<br>Stilettos, Block Heels, Wedges
+            Christian Louboutin, Jimmy Choo
           </p>
         </div>
       </div>
@@ -156,7 +156,7 @@
             Sandals & Flats
           </h3>
           <p style="color:#64748b;font-size:1rem;">
-            Tory Burch, Birkenstock<br>Strappy, Espadrilles, Ballet Flats
+            Tory Burch, Birkenstock
           </p>
         </div>
       </div>

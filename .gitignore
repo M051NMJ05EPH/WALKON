@@ -1,0 +1,27 @@
+# Configuration
+config.php
+google-config.php
+
+# Media and Uploads
+uploads/
+
+# Logs and Temp
+*.log
+mysql_error.log
+mysqld.dmp
+debug_images.json
+
+# Environment
+env
+.env
+
+# Tool Specific
+.zencoder/
+.zenflow/
+.gemini/
+.agent/
+
+# OS Specific
+Thumbs.db
+Desktop.ini
+.DS_Store

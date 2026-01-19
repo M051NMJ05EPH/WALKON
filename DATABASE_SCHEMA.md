@@ -15,6 +15,11 @@ erDiagram
     PRODUCTS ||--o{ SYNC_LOGS : syncs
     PRODUCTS ||--o{ PRICING_HISTORY : has
     PRODUCTS ||--o{ ANALYTICS : measured_by
+    PRODUCTS ||--o{ PRODUCT_REVIEWS : receives
+    USERS ||--o{ CART : has
+    USERS ||--o{ WISHLIST : maintains
+    USERS ||--o{ USER_ADDRESSES : manages
+    USERS ||--o{ PRODUCT_REVIEWS : writes
 
     USERS {
         int id PK
@@ -193,6 +198,34 @@ erDiagram
 - OAuth token management
 - Per-channel configuration
 - Token expiration tracking
+
+### 🛒 CART
+**Purpose:** Manage user shopping baskets
+- Temporary storage of items for purchase
+- Tracks quantity, size, and color selections
+- Links users to products
+
+### 💖 WISHLIST
+**Purpose:** Store saved items for users
+- Items users intend to buy later
+- Unique per user-product combination
+
+### 📍 USER_ADDRESSES
+**Purpose:** Manage shipping and billing addresses
+- Multiple addresses per user
+- Default address selection
+- Essential for checkout flow
+
+### ⭐ PRODUCT_REVIEWS
+**Purpose:** Store user feedback and ratings
+- Social proof and product feedback
+- Star ratings (1-5) and text comments
+
+### 🎫 COUPONS
+**Purpose:** Manage discount codes
+- Marketing and promotional codes
+- Supports fixed amount and percentage discounts
+- Usage constraints (min amount, expiry)
 
 ## 🔗 Key Relationships
 

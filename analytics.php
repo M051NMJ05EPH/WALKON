@@ -19,9 +19,44 @@ try {
     
     $seller_id = $seller ? $seller['id'] : -1;
 
-    $stmt = $pdo->prepare("SELECT * FROM products WHERE seller_id = ?");
+    // Updated for Normalized Schema
+    $query = "SELECT pb.id, 
+                     ps.quantity, 
+                     pp.price, 
+                     c.name as category, 
+                     GROUP_CONCAT(pch.channel_name) as channels
+              FROM product_base pb
+              LEFT JOIN product_stock ps ON pb.id = ps.product_id
+              LEFT JOIN product_prices pp ON pb.id = pp.product_id
+              LEFT JOIN categories c ON pb.category_id = c.id
+              LEFT JOIN product_channels pch ON pb.id = pch.product_id
+              WHERE pb.seller_id = ?
+              GROUP BY pb.id, ps.quantity, pp.price, c.name";
+              
+    $stmt = $pdo->prepare($query);
     $stmt->execute([$seller_id]);
     $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // 2. Fetch Sales Analytics (Last 30 Days)
+    $sales_query = "SELECT 
+                        SUM(total_revenue) as rev_30d, 
+                        SUM(total_orders) as ord_30d,
+                        SUM(units_sold) as unit_30d
+                    FROM daily_sales_analytics 
+                    WHERE seller_id = ? AND recorded_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)";
+    $stmt_sales = $pdo->prepare($sales_query);
+    $stmt_sales->execute([$seller_id]);
+    $sales_stats = $stmt_sales->fetch(PDO::FETCH_ASSOC);
+
+    // 3. Fetch Recent Trends
+    $trends_query = "SELECT recorded_date, total_revenue, total_orders 
+                     FROM daily_sales_analytics 
+                     WHERE seller_id = ? 
+                     ORDER BY recorded_date DESC LIMIT 7";
+    $stmt_trends = $pdo->prepare($trends_query);
+    $stmt_trends->execute([$seller_id]);
+    $trends = $stmt_trends->fetchAll(PDO::FETCH_ASSOC);
+
 } catch (PDOException $e) {
     die("Error fetching data: " . $e->getMessage());
 }
@@ -32,7 +67,7 @@ $total_value = 0;
 $total_stock = 0;
 $categories = [];
 $channel_counts = [
-    'Amazon' => 0, 'Shopify' => 0, 'Instagram' => 0, 'TikTok' => 0, 'eBay' => 0
+    'Amazon' => 0, 'Shopify' => 0, 'Instagram' => 0, 'TikTok Shop' => 0, 'eBay' => 0
 ];
 
 foreach ($products as $p) {
@@ -172,24 +207,31 @@ arsort($categories);
     <!-- Key Metrics -->
     <div class="stats-grid">
         <div class="stat-card">
-            <div class="stat-icon"><i class="fas fa-box"></i></div>
+            <div class="stat-icon" style="background: #e7f3ff; color: #007bff;"><i class="fas fa-chart-line"></i></div>
             <div class="stat-info">
-                <h3><?php echo number_format($total_listings); ?></h3>
-                <p>Total Listings</p>
+                <h3>₹<?php echo number_format($sales_stats['rev_30d'] ?? 0, 2); ?></h3>
+                <p>30d Revenue</p>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon" style="background: #fff4e5; color: #ff9800;"><i class="fas fa-shopping-bag"></i></div>
+            <div class="stat-info">
+                <h3><?php echo number_format($sales_stats['ord_30d'] ?? 0); ?></h3>
+                <p>30d Orders</p>
             </div>
         </div>
         <div class="stat-card">
             <div class="stat-icon"><i class="fas fa-rupee-sign"></i></div>
             <div class="stat-info">
                 <h3>₹<?php echo number_format($total_value, 2); ?></h3>
-                <p>Total Inventory Value</p>
+                <p>Inventory Value</p>
             </div>
         </div>
         <div class="stat-card">
-            <div class="stat-icon"><i class="fas fa-layer-group"></i></div>
+            <div class="stat-icon" style="background: #f3e5f5; color: #9c27b0;"><i class="fas fa-box"></i></div>
             <div class="stat-info">
-                <h3><?php echo number_format($total_stock); ?></h3>
-                <p>Total Items in Stock</p>
+                <h3><?php echo number_format($total_listings); ?></h3>
+                <p>Active Listings</p>
             </div>
         </div>
     </div>
@@ -240,13 +282,54 @@ arsort($categories);
                 </li>
                 <li class="data-item channel-item">
                     <span><i class="fab fa-tiktok"></i> TikTok Shop</span>
-                    <span class="data-value"><?php echo $channel_counts['TikTok']; ?></span>
+                    <span class="data-value"><?php echo $channel_counts['TikTok Shop']; ?></span>
                 </li>
                 <li class="data-item channel-item">
                     <span><i class="fab fa-ebay"></i> eBay</span>
                     <span class="data-value"><?php echo $channel_counts['eBay']; ?></span>
                 </li>
             </ul>
+        </div>
+
+        <!-- Sales Trend -->
+        <div class="content-card" style="grid-column: span 2;">
+            <div class="card-header">
+                <h3>Recent Sales Performance (Last 7 Days)</h3>
+            </div>
+            <table style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="text-align: left; color: #666; font-size: 14px;">
+                        <th style="padding: 10px 0;">Date</th>
+                        <th style="padding: 10px 0;">Orders</th>
+                        <th style="padding: 10px 0;">Revenue</th>
+                        <th style="padding: 10px 0; text-align: right;">Growth</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php if (count($trends) > 0): ?>
+                        <?php foreach ($trends as $index => $row): 
+                            $date = date('M d', strtotime($row['recorded_date']));
+                            $rev = $row['total_revenue'];
+                            $prev_rev = $trends[$index + 1]['total_revenue'] ?? $rev;
+                            $diff = $rev - $prev_rev;
+                            $color = $diff >= 0 ? '#28a745' : '#dc3545';
+                            $icon = $diff >= 0 ? 'fa-arrow-up' : 'fa-arrow-down';
+                        ?>
+                            <tr style="border-bottom: 1px solid #f8f9fa;">
+                                <td style="padding: 15px 0; font-weight: 500;"><?php echo $date; ?></td>
+                                <td style="padding: 15px 0;"><?php echo $row['total_orders']; ?></td>
+                                <td style="padding: 15px 0; font-weight: 600;">₹<?php echo number_format($rev, 2); ?></td>
+                                <td style="padding: 15px 0; text-align: right; color: <?php echo $color; ?>; font-weight: 500;">
+                                    <i class="fas <?php echo $icon; ?>" style="font-size: 12px;"></i>
+                                    <?php echo $prev_rev > 0 ? round(($diff / $prev_rev) * 100, 1) : '0'; ?>%
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    <?php else: ?>
+                        <tr><td colspan="4" style="padding: 20px; text-align: center; color: #999;">No sales history available.</td></tr>
+                    <?php endif; ?>
+                </tbody>
+            </table>
         </div>
     </div>
 </div>
