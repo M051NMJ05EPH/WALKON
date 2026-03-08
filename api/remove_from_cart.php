@@ -1,0 +1,43 @@
+<?php
+session_start();
+include '../config.php';
+
+header('Content-Type: application/json');
+
+if (!isset($_SESSION['user_id'])) {
+    echo json_encode(['success' => false, 'message' => 'Please login first']);
+    exit();
+}
+
+$data = json_decode(file_get_contents('php://input'), true);
+$product_id = $data['product_id'] ?? null;
+$user_id = $_SESSION['user_id'];
+
+if (!$product_id) {
+    echo json_encode(['success' => false, 'message' => 'Product ID missing']);
+    exit();
+}
+
+try {
+    $stmt = $pdo->prepare("DELETE FROM cart WHERE user_id = ? AND product_id = ?");
+    $stmt->execute([$user_id, $product_id]);
+
+    // Get total cart count and subtotal
+    $stmt = $pdo->prepare("
+        SELECT SUM(c.quantity) as total_items, SUM(c.quantity * pp.price) as subtotal
+        FROM cart c
+        JOIN product_prices pp ON c.product_id = pp.product_id
+        WHERE c.user_id = ?
+    ");
+    $stmt->execute([$user_id]);
+    $stats = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    echo json_encode([
+        'success' => true,
+        'total_items' => $stats['total_items'] ?? 0,
+        'subtotal' => $stats['subtotal'] ?? 0
+    ]);
+
+} catch (Exception $e) {
+    echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+}

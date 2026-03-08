@@ -1,0 +1,168 @@
+DB: walkon_shoes_v2
+
+TABLE: brands
+  id (int(11))
+  name (varchar(100))
+  logo_url (varchar(500))
+  created_at (timestamp)
+
+TABLE: categories
+  id (int(11))
+  name (varchar(100))
+  image_url (varchar(500))
+  description (text)
+  created_at (timestamp)
+
+TABLE: daily_sales_analytics
+  id (int(11))
+  seller_id (int(11))
+  recorded_date (date)
+  total_orders (int(11))
+  total_revenue (decimal(10,2))
+  units_sold (int(11))
+
+TABLE: marketplaces
+  id (int(11))
+  name (varchar(50))
+  icon_class (varchar(50))
+  color_hex (varchar(20))
+  created_at (timestamp)
+
+TABLE: materials
+  id (int(11))
+  name (varchar(100))
+
+TABLE: orders
+  id (int(11))
+  seller_id (int(11))
+  product_id (int(11))
+  customer_name (varchar(100))
+  customer_email (varchar(100))
+  customer_phone (varchar(20))
+  shipping_address (text)
+  quantity (int(11))
+  unit_price (decimal(10,2))
+  total_amount (decimal(10,2))
+  channel (varchar(50))
+  order_status (varchar(50))
+  payment_status (varchar(50))
+  tracking_number (varchar(100))
+  order_date (datetime)
+  shipped_date (datetime)
+  delivered_date (datetime)
+  created_at (datetime)
+  updated_at (datetime)
+
+TABLE: platform_features
+  id (int(11))
+  icon (varchar(50))
+  title (varchar(100))
+  description (text)
+
+TABLE: product_base
+  id (int(11))
+  seller_id (int(11))
+  category_id (int(11))
+  sub_category_id (int(11))
+  name (varchar(255))
+  status (enum('draft','published','scheduled'))
+  created_at (timestamp)
+  updated_at (timestamp)
+
+TABLE: product_channels
+  product_id (int(11))
+  channel_name (varchar(50))
+  created_at (timestamp)
+
+TABLE: product_colors
+  id (int(11))
+  product_id (int(11))
+  color_name (varchar(50))
+  color_hex (varchar(20))
+
+TABLE: product_descriptions
+  id (int(11))
+  product_id (int(11))
+  content (text)
+  created_at (timestamp)
+
+TABLE: product_marketplaces
+  id (int(11))
+  product_id (int(11))
+  marketplace_id (int(11))
+  product_url (varchar(255))
+  status (enum('active','inactive'))
+
+TABLE: product_media
+  id (int(11))
+  product_id (int(11))
+  url (varchar(500))
+  type (enum('image','video'))
+  is_primary (tinyint(1))
+  created_at (timestamp)
+
+TABLE: product_prices
+  id (int(11))
+  product_id (int(11))
+  price (decimal(10,2))
+  min_price (decimal(10,2))
+  max_price (decimal(10,2))
+  smart_pricing_status (tinyint(1))
+  created_at (timestamp)
+
+TABLE: product_sizes
+  id (int(11))
+  product_id (int(11))
+  size_value (varchar(50))
+
+TABLE: product_skus
+  id (int(11))
+  product_id (int(11))
+  sku (varchar(100))
+  created_at (timestamp)
+
+TABLE: product_specs
+  product_id (int(11))
+  brand_id (int(11))
+  gender (varchar(50))
+  heel_height (varchar(50))
+  outer_material (varchar(100))
+  season (varchar(100))
+  shoe_type (varchar(100))
+  occasion (varchar(100))
+
+TABLE: product_stock
+  id (int(11))
+  product_id (int(11))
+  quantity (int(11))
+  temp_hold (int(11))
+  created_at (timestamp)
+
+TABLE: sellers
+  id (int(11))
+  name (varchar(100))
+  email (varchar(100))
+  password (varchar(255))
+  business_name (varchar(150))
+  is_active (tinyint(1))
+  created_at (datetime)
+
+TABLE: sub_categories
+  id (int(11))
+  category_id (int(11))
+  name (varchar(100))
+  created_at (timestamp)
+
+TABLE: users
+  id (int(11))
+  first_name (varchar(50))
+  last_name (varchar(50))
+  email (varchar(100))
+  password (varchar(255))
+  verification_token (varchar(255))
+  is_verified (tinyint(1))
+  reset_token (varchar(255))
+  reset_expires (datetime)
+  created_at (datetime)
+  updated_at (datetime)
+
