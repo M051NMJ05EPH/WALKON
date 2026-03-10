@@ -334,7 +334,7 @@ if (!empty($_SESSION['recently_viewed'])) {
         .thumb-box.active { border-color: var(--primary); }
         
         .main-img-wrap { flex: 1; border-radius: 32px; background: var(--gray-50); display: flex; align-items: center; justify-content: center; padding: 40px; box-shadow: 0 10px 40px rgba(0,0,0,0.02); }
-        .main-img { max-width: 100%; max-height: 500px; object-fit: contain; filter: drop-shadow(0 20px 40px rgba(0,0,0,0.1)); }
+        .main-img { max-width: 100%; max-height: 500px; object-fit: contain; filter: drop-shadow(0 20px 40px rgba(0,0,0,0.1)); transition: opacity 0.15s linear; }
         
         /* Info */
         .brand-badge { display: inline-block; background: #dcfce7; color: #166534; padding: 6px 14px; border-radius: 50px; font-weight: 700; font-size: 0.8rem; margin-bottom: 20px; text-transform: uppercase; letter-spacing: 0.5px; }
@@ -530,14 +530,14 @@ if (!empty($_SESSION['recently_viewed'])) {
                     </div>
                 <?php endforeach; ?>
             <?php else: ?>
-                <!-- Fallback: 7 curated colors -->
-                <div class="color-option" style="background-color: #111111;" title="Jet Black" data-color-name="Jet Black" onclick="selectColor(this)"></div>
-                <div class="color-option" style="background-color: #F5F0E8;" title="Ivory White" data-color-name="Ivory White" onclick="selectColor(this)"></div>
-                <div class="color-option" style="background-color: #1B2A4A;" title="Midnight Navy" data-color-name="Midnight Navy" onclick="selectColor(this)"></div>
-                <div class="color-option" style="background-color: #2D6A4F;" title="Forest Green" data-color-name="Forest Green" onclick="selectColor(this)"></div>
-                <div class="color-option" style="background-color: #C0392B;" title="Crimson Red" data-color-name="Crimson Red" onclick="selectColor(this)"></div>
-                <div class="color-option" style="background-color: #C9A84C;" title="Royal Gold" data-color-name="Royal Gold" onclick="selectColor(this)"></div>
-                <div class="color-option" style="background-color: #3A86C8;" title="Sky Blue" data-color-name="Sky Blue" onclick="selectColor(this)"></div>
+                <!-- Fallback: CSS Hue Mapped colors -->
+                <div class="color-option" style="background-color: #111111;" title="Original Theme" data-color-name="Original Theme" data-hue="0" onclick="selectColor(this)"></div>
+                <div class="color-option" style="background-color: #F5F0E8;" title="Neon Invert" data-color-name="Neon Invert" data-hue="180" onclick="selectColor(this)"></div>
+                <div class="color-option" style="background-color: #1B2A4A;" title="Midnight Navy" data-color-name="Midnight Navy" data-hue="220" onclick="selectColor(this)"></div>
+                <div class="color-option" style="background-color: #2D6A4F;" title="Forest Green" data-color-name="Forest Green" data-hue="110" onclick="selectColor(this)"></div>
+                <div class="color-option" style="background-color: #C0392B;" title="Crimson Red" data-color-name="Crimson Red" data-hue="330" onclick="selectColor(this)"></div>
+                <div class="color-option" style="background-color: #C9A84C;" title="Royal Gold" data-color-name="Royal Gold" data-hue="45" onclick="selectColor(this)"></div>
+                <div class="color-option" style="background-color: #3A86C8;" title="Sky Blue" data-color-name="Sky Blue" data-hue="195" onclick="selectColor(this)"></div>
             <?php endif; ?>
         </div>
 
@@ -548,7 +548,9 @@ if (!empty($_SESSION['recently_viewed'])) {
         </div>
         <div class="selector-row">
             <?php 
-            $display_sizes = !empty($sizes) ? $sizes : ['UK 7', 'UK 8', 'UK 9', 'UK 10', 'UK 11'];
+            $base_sizes = ['5', '6', '7', '8', '9', '10', '11', '12'];
+            $display_sizes = array_unique(array_merge($base_sizes, (array)$sizes));
+            sort($display_sizes, SORT_NATURAL);
             foreach ($display_sizes as $s): ?>
                 <button class="size-btn" onclick="selectSize(this)"><?php echo htmlspecialchars($s); ?></button>
             <?php endforeach; ?>
@@ -1603,14 +1605,33 @@ if (!empty($_SESSION['recently_viewed'])) {
     // Color Image Map from PHP
     const colorImageMap = <?php echo json_encode($colorImageMap); ?>;
 
-    function changeImage(src, el) {
-        document.getElementById('mainImage').src = src;
-        // Also update zoom result background
-        document.getElementById('zoomResult').style.backgroundImage = "url('" + src + "')";
+    function changeImage(src, el, colorId = null) {
+        let img = document.getElementById('mainImage');
+        img.style.opacity = '0';
+        
+        setTimeout(() => {
+            img.src = src;
+            // Apply CSS color filtering via dataset if color mapping applied
+            if(el && el.dataset.hue) {
+                let deg = el.dataset.hue;
+                let filterStr = `drop-shadow(0 20px 40px rgba(0,0,0,0.1)) hue-rotate(${deg}deg) saturate(1.2)`;
+                img.style.filter = filterStr;
+                document.getElementById('zoomResult').style.filter = `hue-rotate(${deg}deg) saturate(1.2)`;
+            } else {
+                img.style.filter = 'drop-shadow(0 20px 40px rgba(0,0,0,0.1))';
+                document.getElementById('zoomResult').style.filter = 'none';
+            }
+            // Update zoom
+            document.getElementById('zoomResult').style.backgroundImage = "url('" + src + "')";
+            
+            img.onload = () => img.style.opacity = '1';
+        }, 150);
         
         if(el) {
-            document.querySelectorAll('.thumb-box').forEach(t => t.classList.remove('active'));
-            el.classList.add('active');
+            if(el.classList.contains('thumb-box')){
+                document.querySelectorAll('.thumb-box').forEach(t => t.classList.remove('active'));
+                el.classList.add('active');
+            }
         }
     }
 
@@ -1879,36 +1900,30 @@ if (!empty($_SESSION['recently_viewed'])) {
             }, 150);
         }
 
-        // Check if there's a specific image for this color
-        if (colorName) {
-            const key = colorName.toLowerCase().trim();
-            const fallbackImageMap = {
-                'jet black': 'https://images.unsplash.com/photo-1608231387042-66d1773070a5?w=600&auto=format&fit=crop&q=80',
-                'ivory white': 'https://images.unsplash.com/photo-1595950653106-6c9ebd614c3a?w=600&auto=format&fit=crop&q=80',
-                'midnight navy': 'https://plus.unsplash.com/premium_photo-1682125177822-63c27a3830ea?w=600&auto=format&fit=crop&q=80',
-                'forest green': 'https://images.unsplash.com/photo-1588600878108-578307a3cc9d?w=600&auto=format&fit=crop&q=80',
-                'crimson red': 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=600&auto=format&fit=crop&q=80',
-                'royal gold': 'https://images.unsplash.com/photo-1600185365483-26d7a4cc7519?w=600&auto=format&fit=crop&q=80',
-                'sky blue': 'https://images.unsplash.com/photo-1606107557195-0e29a4b5b4aa?w=600&auto=format&fit=crop&q=80'
-            };
-
-            let newSrc = null;
-            if(colorImageMap[key]) {
-                newSrc = colorImageMap[key];
-            } else if (fallbackImageMap[key]) {
-                newSrc = fallbackImageMap[key];
+        // Apply color change to "all products" on the page (Main, Thumbs, and Recently Viewed)
+        const hue = el.dataset.hue;
+        const allProductImages = document.querySelectorAll('.main-img, .thumb-box img, .recent-img-box img');
+        
+        allProductImages.forEach(img => {
+            img.style.transition = 'filter 0.5s cubic-bezier(0.4, 0, 0.2, 1)';
+            if (hue && hue != '0') {
+                // Optimized filter for colorizing both neutral (white/gray) and colored images
+                img.style.filter = `sepia(100%) hue-rotate(${hue}deg) saturate(4) brightness(0.9) drop-shadow(0 20px 40px rgba(0,0,0,0.1))`;
+            } else {
+                img.style.filter = 'none';
             }
+        });
 
-            if(newSrc) {
-                document.getElementById('mainImage').src = newSrc;
-                const zoomBox = document.getElementById('zoomResult');
-                if(zoomBox) zoomBox.style.backgroundImage = "url('" + newSrc + "')";
-
-                document.querySelectorAll('.thumb-box img').forEach(img => {
-                    if(img.src.includes(newSrc)) {
-                       img.parentElement.click();
-                    }
-                });
+        // Specific image mapping for main product
+        const colorKey = colorName.toLowerCase().trim();
+        if (typeof colorImageMap !== 'undefined' && colorImageMap[colorKey]) {
+            changeImage(colorImageMap[colorKey], el);
+        } else if (hue) {
+            // Apply hue to the zoom result as well
+            const zoomRes = document.getElementById('zoomResult');
+            if(zoomRes) {
+                zoomRes.style.transition = 'filter 0.5s ease';
+                zoomRes.style.filter = `hue-rotate(${hue}deg) saturate(1.2)`;
             }
         }
     }

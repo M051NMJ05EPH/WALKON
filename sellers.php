@@ -154,16 +154,18 @@ if ($seller_id && ($user_role === 'store' || $user_role === 'store_owner')) {
         .btn-outline { background: var(--white); border: 1px solid var(--border); color: var(--navy); }
         .btn-outline:hover { background: #f8fafc; border-color: var(--primary); color: var(--primary); }
 
-        /* Ecosystem Grid */
-        .sellers-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); gap: 32px; }
+        /* Ecosystem Grid — 3-column parallel layout */
+        .sellers-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px; }
         .seller-card {
             background: linear-gradient(135deg, rgba(255,255,255,0.92) 0%, rgba(239,246,255,0.85) 100%);
             backdrop-filter: blur(20px);
-            border: 1px solid rgba(199, 220, 255, 0.8); border-radius: 28px; padding: 32px;
+            border: 1px solid rgba(199, 220, 255, 0.8); border-radius: 28px; padding: 24px;
             transition: 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            display: flex; flex-direction: column; gap: 24px;
+            display: flex; flex-direction: column; gap: 20px;
             box-shadow: 0 4px 20px rgba(37, 99, 235, 0.06), 0 1px 3px rgba(37, 99, 235, 0.04);
         }
+        @media (max-width: 1280px) { .sellers-grid { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 768px) { .sellers-grid { grid-template-columns: 1fr; } }
         .seller-card:hover { transform: translateY(-12px); border-color: var(--primary-light); box-shadow: 0 25px 50px -12px rgba(37, 99, 235, 0.18), 0 4px 20px rgba(37, 99, 235, 0.1); }
 
         .seller-card-header { display: flex; justify-content: space-between; align-items: flex-start; }

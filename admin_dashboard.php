@@ -89,13 +89,16 @@ try {
         .sidebar {
             width: 260px;
             background: #fff;
-            min-height: 100vh;
+            height: 100vh;
+            overflow-y: auto;
+            overflow-x: hidden;
             color: var(--text-dark);
             position: fixed;
             left: 0; top: 0;
             transition: 0.3s;
             z-index: 1000;
             border-right: 1px solid var(--border);
+            padding-bottom: 20px;
         }
         .sidebar-header {
             padding: 25px;
@@ -262,10 +265,31 @@ try {
         .btn-approve { background: #dcfce7; color: #166534; }
         .btn-approve:hover { background: #166534; color: #fff; }
 
-        /* Custom Scrollbar */
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.1); border-radius: 10px; }
+        /* Scroll to Top Button */
+        #scrollTopBtn {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 50px;
+            height: 50px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            box-shadow: 0 4px 15px rgba(37, 99, 235, 0.4);
+            z-index: 2000;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+        #scrollTopBtn:hover {
+            transform: translateY(-5px);
+            background: var(--primary-hover);
+        }
     </style>
 </head>
 <body>
@@ -503,7 +527,25 @@ try {
 
     </main>
 
+    <button id="scrollTopBtn" title="Go to top">
+        <i class="fas fa-arrow-up"></i>
+    </button>
+
     <script>
+        // Scroll to Top Logic
+        const scrollTopBtn = document.getElementById("scrollTopBtn");
+        window.onscroll = function() {
+            if (document.body.scrollTop > 300 || document.documentElement.scrollTop > 300) {
+                scrollTopBtn.style.display = "flex";
+            } else {
+                scrollTopBtn.style.display = "none";
+            }
+        };
+
+        scrollTopBtn.onclick = function() {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        };
+
         function handleA(type, id, action) {
             let api = '';
             let body = {};

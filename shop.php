@@ -170,9 +170,10 @@ if (isset($_SESSION['user_id'])) {
             --light-bg: #f0f9ff;
             --light-card: #ffffff;
             --light-border: #bae6fd;
-            --text-main: #2563eb;     /* Blue Text */
+            --text-main: #0f172a;     /* Deep Navy for better readability */
             --text-green: #10b981;    /* Green Text */
             --text-muted: #64748b;
+            --border: rgba(37, 99, 235, 0.1);
             --glass: rgba(255, 255, 255, 0.7);
         }
 
@@ -232,33 +233,77 @@ if (isset($_SESSION['user_id'])) {
 
         .shop-layout {
             display: grid;
-            grid-template-columns: 280px 1fr;
-            gap: 3rem;
-            margin-top: 3rem;
+            grid-template-columns: 320px 1fr;
+            gap: 4rem;
+            margin-top: 140px; /* Increased to clear the 80px fixed navbar + extra space */
             align-items: start;
         }
 
-        /* Sidebar Filters */
+        /* Sidebar Filters Refined */
         .sidebar {
             position: sticky; top: 100px;
             background: #000000;
             border: 1px solid rgba(255,255,255,0.1);
             border-radius: 24px;
-            padding: 2rem;
+            padding: 2.5rem 1.5rem;
             box-shadow: 0 10px 40px rgba(0,0,0,0.2);
         }
         .sidebar-section { margin-bottom: 2.5rem; }
         .sidebar-section h3 { 
-            font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1.5px;
-            color: #ffffff; margin-bottom: 1.25rem; font-weight: 700;
+            font-size: 0.8rem; text-transform: uppercase; letter-spacing: 2px;
+            color: rgba(255,255,255,0.4); margin-bottom: 1.5rem; font-weight: 800;
+            padding-left: 1rem;
         }
+        .filter-list { list-style: none; padding: 0; }
+        .filter-item { margin-bottom: 4px; }
         .filter-link { 
             text-decoration: none; color: #94a3b8; font-size: 0.95rem;
-            display: flex; justify-content: space-between; align-items: center;
+            display: flex; align-items: center; gap: 12px;
+            padding: 0.8rem 1rem; border-radius: 12px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+        }
+        .filter-link::before {
+            content: ''; width: 6px; height: 6px; background: var(--secondary);
+            border-radius: 50%; opacity: 0; transform: scale(0);
             transition: 0.3s;
         }
-        .filter-link:hover, .filter-link.active { color: var(--text-green); }
-        .filter-link.active { font-weight: 600; }
+        .filter-link:hover { 
+            background: rgba(255,255,255,0.05); color: #ffffff;
+            padding-left: 1.25rem;
+        }
+        .filter-link:hover::before {
+            opacity: 1; transform: scale(1);
+        }
+        .filter-link.active { 
+            background: rgba(37, 99, 235, 0.1); color: var(--secondary);
+            font-weight: 700; border: 1px solid rgba(37, 99, 235, 0.2);
+        }
+        .filter-link.active::before {
+            opacity: 1; transform: scale(1.5); background: var(--secondary);
+            box-shadow: 0 0 15px var(--secondary);
+        }
+
+        /* Scrollable Filter Lists */
+        .filter-scroll-container {
+            max-height: 300px;
+            overflow-y: auto;
+            padding-right: 10px;
+        }
+        .filter-scroll-container::-webkit-scrollbar {
+            width: 4px;
+        }
+        .filter-scroll-container::-webkit-scrollbar-track {
+            background: rgba(255,255,255,0.05);
+            border-radius: 10px;
+        }
+        .filter-scroll-container::-webkit-scrollbar-thumb {
+            background: rgba(37, 99, 235, 0.3);
+            border-radius: 10px;
+        }
+        .filter-scroll-container::-webkit-scrollbar-thumb:hover {
+            background: var(--secondary);
+        }
 
         /* Search Bar */
         .search-box {
@@ -294,7 +339,9 @@ if (isset($_SESSION['user_id'])) {
         }
 
         .product-grid {
-            display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 2rem;
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); 
+            gap: 3rem;
         }
         .product-card {
             background: #ffffff; border: 1px solid var(--light-border);
@@ -307,7 +354,7 @@ if (isset($_SESSION['user_id'])) {
             box-shadow: 0 20px 40px rgba(37, 99, 235, 0.1);
         }
         .img-wrap {
-            height: 240px; background: radial-gradient(circle at 30% 30%, #eff6ff, #f8fafc); border-radius: 16px;
+            height: 320px; background: radial-gradient(circle at 30% 30%, #eff6ff, #f8fafc); border-radius: 16px;
             margin-bottom: 1.25rem; display: flex; align-items: center; justify-content: center;
             overflow: hidden;
         }
@@ -320,9 +367,13 @@ if (isset($_SESSION['user_id'])) {
         .old-price { text-decoration: line-through; color: var(--text-muted); font-size: 0.9rem; }
 
         .no-results {
-            text-align: center; padding: 100px 0; grid-column: 1 / -1;
+            text-align: center; padding: 120px 20px; grid-column: 1 / -1;
+            background: rgba(255, 255, 255, 0.5);
+            border-radius: 30px;
+            border: 2px dashed var(--border);
         }
-        .no-results i { font-size: 4rem; color: var(--border); margin-bottom: 1rem; }
+        .no-results i { font-size: 5rem; color: var(--secondary); margin-bottom: 2rem; opacity: 0.2; }
+        .no-results h3 { font-size: 1.8rem; color: #1e293b; margin-bottom: 1rem; }
 
         /* Stocking Action */
         .stock-action-btn {
@@ -634,18 +685,22 @@ if (isset($_SESSION['user_id'])) {
 
             <div class="sidebar-section">
                 <h3>Brands</h3>
-                <ul class="filter-list">
-                    <li class="filter-item">
-                        <a href="shop.php?category=<?= $category_id ?>&subcategory=<?= $sub_category_id ?>&gender=<?= urlencode($gender) ?>&material=<?= urlencode($outer_material) ?>" class="filter-link <?= $brand_id == 0 ? 'active' : '' ?>">All Brands</a>
-                    </li>
-                    <?php foreach($brands as $b): ?>
+                <div class="filter-scroll-container">
+                    <ul class="filter-list">
                         <li class="filter-item">
-                            <a href="shop.php?brand=<?= $b['id'] ?>&category=<?= $category_id ?>&subcategory=<?= $sub_category_id ?>&gender=<?= urlencode($gender) ?>&material=<?= urlencode($outer_material) ?>" class="filter-link <?= $brand_id == $b['id'] ? 'active' : '' ?>">
-                                <?= htmlspecialchars($b['name']) ?>
+                            <a href="shop.php?category=<?= $category_id ?>&subcategory=<?= $sub_category_id ?>&gender=<?= urlencode($gender) ?>&material=<?= urlencode($outer_material) ?>" class="filter-link <?= $brand_id == 0 ? 'active' : '' ?>">
+                                All Brands
                             </a>
                         </li>
-                    <?php endforeach; ?>
-                </ul>
+                        <?php foreach($brands as $b): ?>
+                            <li class="filter-item">
+                                <a href="shop.php?brand=<?= $b['id'] ?>&category=<?= $category_id ?>&subcategory=<?= $sub_category_id ?>&gender=<?= urlencode($gender) ?>&material=<?= urlencode($outer_material) ?>" class="filter-link <?= $brand_id == $b['id'] ? 'active' : '' ?>">
+                                    <?= htmlspecialchars($b['name']) ?>
+                                </a>
+                            </li>
+                        <?php endforeach; ?>
+                    </ul>
+                </div>
             </div>
 
             <div class="sidebar-section">
@@ -669,18 +724,20 @@ if (isset($_SESSION['user_id'])) {
 
             <div class="sidebar-section">
                 <h3>Material</h3>
-                <ul class="filter-list">
-                    <li class="filter-item">
-                        <a href="shop.php?category=<?= $category_id ?>&subcategory=<?= $sub_category_id ?>&brand=<?= $brand_id ?>&gender=<?= urlencode($gender) ?>" class="filter-link <?= empty($outer_material) ? 'active' : '' ?>">Any Material</a>
-                    </li>
-                    <?php foreach($materials as $m): ?>
+                <div class="filter-scroll-container">
+                    <ul class="filter-list">
                         <li class="filter-item">
-                            <a href="shop.php?material=<?= urlencode($m) ?>&category=<?= $category_id ?>&subcategory=<?= $sub_category_id ?>&brand=<?= $brand_id ?>&gender=<?= urlencode($gender) ?>" class="filter-link <?= $outer_material == $m ? 'active' : '' ?>">
-                                <?= htmlspecialchars($m) ?>
-                            </a>
+                            <a href="shop.php?category=<?= $category_id ?>&subcategory=<?= $sub_category_id ?>&brand=<?= $brand_id ?>&gender=<?= urlencode($gender) ?>" class="filter-link <?= empty($outer_material) ? 'active' : '' ?>">Any Material</a>
                         </li>
-                    <?php endforeach; ?>
-                </ul>
+                        <?php foreach($materials as $m): ?>
+                            <li class="filter-item">
+                                <a href="shop.php?material=<?= urlencode($m) ?>&category=<?= $category_id ?>&subcategory=<?= $sub_category_id ?>&brand=<?= $brand_id ?>&gender=<?= urlencode($gender) ?>" class="filter-link <?= $outer_material == $m ? 'active' : '' ?>">
+                                    <?= htmlspecialchars($m) ?>
+                                </a>
+                            </li>
+                        <?php endforeach; ?>
+                    </ul>
+                </div>
             </div>
 
             <div class="sidebar-section">
@@ -704,12 +761,30 @@ if (isset($_SESSION['user_id'])) {
             <div class="results-header">
                 <div>
                     <h1 style="color:var(--text-muted); font-size: 0.8rem; text-transform:uppercase; letter-spacing:1px; margin-bottom: 0.5rem;">Marketplace</h1>
-                    <h2 style="font-size: 2.2rem; letter-spacing: -1px; margin: 0;">
+                    <h2 style="font-size: 2.8rem; letter-spacing: -2px; margin: 0; color: #0f172a; font-weight: 800;">
                         <?php 
                         if(!empty($search_query)) echo 'Search: "' . htmlspecialchars($search_query) . '"';
-                        else echo 'Premium Selection';
+                        elseif($brand_id > 0) {
+                            $b_name = "Premium Brand";
+                            foreach($brands as $br) if($br['id'] == $brand_id) $b_name = $br['name'];
+                            echo htmlspecialchars($b_name);
+                        }
+                        elseif($category_id > 0) {
+                            $c_name = "Collection";
+                            foreach($categories as $ca) if($ca['id'] == $category_id) $c_name = $ca['name'];
+                            echo htmlspecialchars($c_name);
+                        }
+                        else echo 'Global Marketplace';
                         ?>
                     </h2>
+                    <div style="display: flex; align-items: center; gap: 15px; margin-top: 10px;">
+                        <span style="background: var(--secondary); color: #fff; padding: 4px 12px; border-radius: 50px; font-size: 0.75rem; font-weight: 700;">
+                            <?= count($products) ?> Products
+                        </span>
+                        <span style="color: var(--text-muted); font-size: 0.85rem; font-weight: 500;">
+                            Active filters currently applied
+                        </span>
+                    </div>
                 </div>
                 <div style="display: flex; align-items: center; gap: 2rem;">
                     <div style="display: flex; align-items: center; gap: 10px;">

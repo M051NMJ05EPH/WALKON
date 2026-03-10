@@ -149,12 +149,12 @@ try {
             ['Lifestyle Sneaker', 2299, 'Sneakers', 'Casual style for everyday wear.'],
         ],
         'Relaxo' => [
-            ['Flite Slipper', 399, 'Sandals & Slides', 'Lightweight and comfortable daily slipper.'],
+            ['Street-Walk Sneakers', 1499, 'Sneakers', 'Comfortable street sneakers for daily wear.'],
             ['Sparx Floater', 799, 'Sandals & Slides', 'Sporty floater for outdoor activities.'],
-            ['Hawaii Chappal', 299, 'Sandals & Slides', 'Classic rubber slipper for home use.'],
+            ['Pro-Active Running Shoes', 1999, 'Running Shoes', 'High-performance running shoes for enthusiasts.'],
         ],
         'Paragon' => [
-            ['Vertex Slipper', 499, 'Sandals & Slides', 'Comfortable daily wear slipper.'],
+            ['Executive Formal Shoes', 2499, 'Formal Shoes', 'Elegant formal shoes for business professionals.'],
             ['Stimulus Sandal', 699, 'Sandals & Slides', 'Durable sandal for regular use.'],
             ['Ladies Chappal', 399, 'Sandals & Slides', 'Everyday comfort for women.'],
         ],

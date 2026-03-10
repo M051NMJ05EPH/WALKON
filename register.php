@@ -47,7 +47,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-    <style>
         :root {
             --primary: #2563eb;       /* Royal Blue */
             --primary-hover: #1d4ed8;
@@ -67,21 +66,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             padding: 0;
             box-sizing: border-box;
             font-family: 'Outfit', sans-serif;
+            scroll-behavior: smooth;
         }
 
         body {
             background: linear-gradient(135deg, #ffffff 0%, #f0f9ff 50%, #e0f2fe 100%);
             color: var(--text-main);
-            height: 100vh;
+            min-height: 100vh;
             display: flex;
-            overflow: hidden;
             background-attachment: fixed;
+            overflow-x: hidden;
         }
 
         .auth-container {
             display: flex;
             width: 100%;
-            height: 100%;
+            min-height: 100vh;
         }
 
         .visual-side {
@@ -139,6 +139,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             font-size: 1.5rem;
         }
 
+        .scroll-down-hint {
+            position: absolute;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #fff;
+            text-decoration: none;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            z-index: 15;
+            transition: 0.3s;
+            opacity: 0.8;
+        }
+
+        .scroll-down-hint:hover {
+            opacity: 1;
+            transform: translateX(-50%) translateY(5px);
+        }
+
+        .scroll-down-hint i {
+            animation: bounce 2s infinite;
+        }
+
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% {transform: translateY(0);}
+            40% {transform: translateY(-10px);}
+            60% {transform: translateY(-5px);}
+        }
+
         .form-side {
             flex: 1;
             display: flex;
@@ -147,6 +182,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             padding: 4rem;
             background: rgba(255, 255, 255, 0.9);
             backdrop-filter: blur(20px);
+        }
+
+        .back-to-top {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 50px;
+            height: 50px;
+            background: var(--primary);
+            color: #fff;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 10px 25px rgba(37, 99, 235, 0.3);
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s;
+            z-index: 1000;
+            border: none;
+            font-size: 1.2rem;
+        }
+
+        .back-to-top.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .back-to-top:hover {
+            transform: translateY(-5px);
+            background: var(--primary-hover);
         }
 
         .form-content {
@@ -284,12 +351,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         .success { background: rgba(16, 185, 129, 0.1); color: #10B981; border: 1px solid rgba(16, 185, 129, 0.2); }
 
         @media (max-width: 968px) {
+            .auth-container {
+                flex-direction: column;
+            }
             .visual-side {
-                display: none;
+                min-height: 100vh;
+                padding: 4rem 2rem;
             }
             .form-side {
-                width: 100%;
-                background: linear-gradient(135deg, #ffffff 0%, #f0f9ff 100%);
+                padding: 4rem 1.5rem;
+                background: #f8fafc;
             }
         }
     </style>
@@ -324,11 +395,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <p style="font-size: 0.85rem; color: #94a3b8; margin: 0;">Get your earnings directly in your bank account.</p>
                 </div>
             </div>
+
+            <a href="#register-header" class="scroll-down-hint">
+                <span>Start Application</span>
+                <i class="fas fa-chevron-down"></i>
+            </a>
         </div>
     </div>
     
     <div class="form-side">
-        <div class="form-content">
+        <div class="form-content" id="register-header">
             <div class="header">
                 <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 2.5rem;">
                     <img src="assets/shoe_logo_green.png" alt="WalkOn Logo" style="height: 44px; width: auto;">
@@ -400,9 +476,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </div>
         </div>
     </div>
-        </div>
-    </div>
 </div>
+
+<button class="back-to-top" id="backToTop" title="Go to top">
+    <i class="fas fa-arrow-up"></i>
+</button>
 
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script>
@@ -465,6 +543,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             this.classList.toggle('fa-eye-slash');
         });
     }
+
+    // -- SCROLL BUTTONS LOGIC --
+    const backToTop = document.getElementById('backToTop');
+    window.addEventListener('scroll', () => {
+        if (window.pageYOffset > 300) {
+            backToTop.classList.add('active');
+        } else {
+            backToTop.classList.remove('active');
+        }
+    });
+
+    backToTop.addEventListener('click', () => {
+        window.scrollTo({
+            top: 0,
+            behavior: 'smooth'
+        });
+    });
 </script>
 
 </body>
